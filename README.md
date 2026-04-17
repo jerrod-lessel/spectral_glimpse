@@ -1,2 +1,2 @@
-# spectral_glimpse
+# Spectral Glimpse
 Small scale imagery analysis app

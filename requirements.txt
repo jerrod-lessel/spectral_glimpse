@@ -1,1 +1,13 @@
-
+earthaccess==0.9.0
+h5py
+numpy
+rasterio
+rio-cogeo
+pyproj
+shapely
+geopandas
+requests
+flask
+flask-cors
+gunicorn
+boto3

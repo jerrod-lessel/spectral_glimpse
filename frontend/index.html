@@ -1,1 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spectral Glimpse</title>
+  <meta name="description" content="On-demand spectral index values for any point in California. Powered by NASA VIIRS satellite data." />
 
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js for sparklines -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Our styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── MAP ── -->
+  <div id="map">
+
+    <!-- Branding overlay -->
+    <div id="map-label">
+      <div class="title">Spectral Glimpse</div>
+      <div class="tagline">Because sometimes you don't need the whole spectrum, just a peek.</div>
+    </div>
+
+    <!-- Click instruction -->
+    <div id="click-hint">Click anywhere in California to sample indices</div>
+
+  </div>
+
+  <!-- ── SIDEBAR ── -->
+  <div id="sidebar">
+
+    <div id="sidebar-header">
+      <div id="sidebar-coords">— ° N · — ° W</div>
+      <div id="sidebar-location">Sampling...</div>
+      <div id="sidebar-date"></div>
+    </div>
+
+    <!-- Loading spinner shown while API call is in flight -->
+    <div id="sidebar-loading">
+      <div class="spinner"></div>
+      <span>Sampling indices...</span>
+    </div>
+
+    <!-- Cards injected here by map.js -->
+    <div id="cards-scroll" style="display:none;"></div>
+
+    <div id="sidebar-footer">
+      <span>Spectral Glimpse</span>
+      <a href="https://www.lesselgeospatial.com" target="_blank">lesselgeospatial.com</a>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="map.js"></script>
+</body>
+</html>

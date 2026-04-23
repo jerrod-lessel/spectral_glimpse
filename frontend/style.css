@@ -62,7 +62,7 @@ html, body {
   pointer-events: none;
 }
 #map-label .title {
-  font-size: 15px;
+  font-size: 25px;
   font-weight: 500;
   color: #e2e8f0;
   letter-spacing: -0.01em;

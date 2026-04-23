@@ -355,3 +355,302 @@ async function fetchSample(lat, lon) {
     return null;
   }
 }
+
+// ── MODAL ─────────────────────────────────────────────────────
+
+// Inject modal HTML into the page
+document.body.insertAdjacentHTML("beforeend", `
+  <div id="modal-overlay">
+    <div id="modal">
+      <button id="modal-close">&#x2715;</button>
+      <div id="modal-index-name"></div>
+      <div id="modal-index-label"></div>
+      <div id="modal-description"></div>
+      <div class="modal-gauges">
+        <div class="modal-gauge-block">
+          <div id="modal-gauge-current"></div>
+          <div class="modal-gauge-sublabel">current value</div>
+        </div>
+        <div class="modal-gauge-block">
+          <div id="modal-gauge-avg"></div>
+          <div class="modal-gauge-sublabel">2-year average</div>
+        </div>
+        <div class="modal-gauge-block">
+          <div id="modal-gauge-min"></div>
+          <div class="modal-gauge-sublabel">2-year low</div>
+        </div>
+        <div class="modal-gauge-block">
+          <div id="modal-gauge-max"></div>
+          <div class="modal-gauge-sublabel">2-year high</div>
+        </div>
+      </div>
+      <div id="modal-chart-wrap">
+        <div id="modal-chart-title">2-YEAR HISTORY — 8-DAY COMPOSITES</div>
+        <canvas id="modal-chart" height="140"></canvas>
+      </div>
+      <div id="modal-trend-wrap" style="margin-bottom:14px;"></div>
+      <div id="modal-interpretation">
+        <div class="interp-label">CURRENT CONDITIONS</div>
+        <div id="modal-interp-text"></div>
+      </div>
+    </div>
+  </div>
+`);
+
+// Store last API data so modal can reference it
+let lastApiData = null;
+
+// Override buildCards to store data and attach click handlers
+const _origBuildCards = buildCards;
+window.buildCards = function(data) {
+  lastApiData = data;
+  _origBuildCards(data);
+
+  // Attach click handler to each card after they're built
+  document.querySelectorAll(".index-card").forEach(card => {
+    card.style.cursor = "pointer";
+    card.addEventListener("click", () => {
+      const key = card.dataset.indexKey;
+      if (key && lastApiData) openModal(key, lastApiData);
+    });
+  });
+};
+
+// Update buildCards to stamp data-index-key on each card
+// We do this by patching the card creation in buildCards
+const _origBuildCardsInner = buildCards;
+function buildCards(data) {
+  lastApiData = data;
+  cardsScroll.innerHTML = "";
+
+  Object.entries(data.indices).forEach(([key, idx]) => {
+    const cfg      = INDEX_CONFIG[key] || {};
+    const color    = cfg.color || "#94a3b8";
+    const min      = cfg.min ?? -1;
+    const max      = cfg.max ?? 1;
+    const canvasId = `spark-${key}`;
+
+    const card = document.createElement("div");
+    card.className = "index-card";
+    card.dataset.indexKey = key;
+    card.style.cursor = "pointer";
+    card.innerHTML = `
+      <div class="card-name">${idx.label || key.toUpperCase()}</div>
+      <div class="card-body">
+        <div class="gauge-side">
+          ${idx.value !== null
+            ? makeGauge(idx.value, min, max, color)
+            : `<div style="width:72px;height:52px;display:flex;align-items:center;
+                justify-content:center;font-size:10px;color:#334155;">no data</div>`
+          }
+        </div>
+        <div class="spark-side">
+          <canvas id="${canvasId}" width="158" height="52"></canvas>
+        </div>
+      </div>
+      <div class="card-interp">${idx.interpretation || ""}</div>
+    `;
+    cardsScroll.appendChild(card);
+
+    card.addEventListener("click", () => {
+      if (lastApiData) openModal(key, lastApiData);
+    });
+
+    if (data.history && data.history[key]) {
+      const history = data.history[key];
+      renderSparkline(
+        canvasId,
+        history.map(h => h.date),
+        history.map(h => h.value),
+        color, min, max
+      );
+    }
+  });
+}
+
+
+// ── MODAL OPEN ────────────────────────────────────────────────
+function openModal(key, data) {
+  const idx     = data.indices[key];
+  const cfg     = INDEX_CONFIG[key] || {};
+  const color   = cfg.color || "#94a3b8";
+  const min     = cfg.min ?? -1;
+  const max     = cfg.max ?? 1;
+  const history = (data.history && data.history[key]) || [];
+  const values  = history.map(h => h.value);
+  const labels  = history.map(h => h.date);
+
+  // Stats
+  const avg     = values.length
+    ? values.reduce((a, b) => a + b, 0) / values.length
+    : null;
+  const hiVal   = values.length ? Math.max(...values) : null;
+  const loVal   = values.length ? Math.min(...values) : null;
+
+  // Trend — compare first third vs last third of history
+  let trendClass = "trend-flat";
+  let trendLabel = "Stable trend";
+  let trendArrow = "→";
+  if (values.length >= 6) {
+    const third     = Math.floor(values.length / 3);
+    const earlyAvg  = values.slice(0, third).reduce((a,b) => a+b,0) / third;
+    const recentAvg = values.slice(-third).reduce((a,b) => a+b,0) / third;
+    const delta     = recentAvg - earlyAvg;
+    const threshold = (max - min) * 0.04;
+    if (delta > threshold) {
+      trendClass = "trend-up";
+      trendLabel = "Increasing over 2 years";
+      trendArrow = "↑";
+    } else if (delta < -threshold) {
+      trendClass = "trend-down";
+      trendLabel = "Decreasing over 2 years";
+      trendArrow = "↓";
+    }
+  }
+
+  // Populate modal
+  document.getElementById("modal-index-name").textContent =
+    key.toUpperCase();
+  document.getElementById("modal-index-label").textContent =
+    idx.label || key.toUpperCase();
+  document.getElementById("modal-description").textContent =
+    idx.description || "";
+
+  // Gauges
+  document.getElementById("modal-gauge-current").innerHTML =
+    idx.value !== null
+      ? makeGauge(idx.value, min, max, color, 90)
+      : "<div style='color:#334155;font-size:11px;'>no data</div>";
+
+  document.getElementById("modal-gauge-avg").innerHTML =
+    avg !== null
+      ? makeGauge(parseFloat(avg.toFixed(3)), min, max, color, 90)
+      : "<div style='color:#334155;font-size:11px;'>—</div>";
+
+  document.getElementById("modal-gauge-min").innerHTML =
+    loVal !== null
+      ? makeGauge(parseFloat(loVal.toFixed(3)), min, max, color, 90)
+      : "<div style='color:#334155;font-size:11px;'>—</div>";
+
+  document.getElementById("modal-gauge-max").innerHTML =
+    hiVal !== null
+      ? makeGauge(parseFloat(hiVal.toFixed(3)), min, max, color, 90)
+      : "<div style='color:#334155;font-size:11px;'>—</div>";
+
+  // Trend badge
+  document.getElementById("modal-trend-wrap").innerHTML =
+    `<div class="modal-trend-badge ${trendClass}">
+       <span>${trendArrow}</span>
+       <span>${trendLabel}</span>
+     </div>`;
+
+  // Interpretation
+  document.getElementById("modal-interp-text").textContent =
+    idx.interpretation || "";
+
+  // Large chart
+  const modalCanvas = document.getElementById("modal-chart");
+  modalCanvas.width = modalCanvas.parentElement.clientWidth - 28;
+
+  if (chartInstances["modal-chart"]) {
+    chartInstances["modal-chart"].destroy();
+    delete chartInstances["modal-chart"];
+  }
+
+  if (values.length) {
+    chartInstances["modal-chart"] = new Chart(modalCanvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: color,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: color,
+          fill: true,
+          backgroundColor: hexToRgba(color, 0.08),
+          tension: 0.3,
+        }],
+      },
+      options: {
+        responsive: false,
+        animation: { duration: 300 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: "rgba(15,17,23,0.95)",
+            borderColor: "rgba(255,255,255,0.1)",
+            borderWidth: 0.5,
+            titleColor: "#94a3b8",
+            bodyColor: color,
+            titleFont: { size: 10 },
+            bodyFont: { size: 12, family: "monospace" },
+            callbacks: {
+              title: (items) => items[0].label,
+              label: (item) => `  ${item.parsed.y.toFixed(3)}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            display: true,
+            ticks: {
+              color: "#334155",
+              font: { size: 9 },
+              maxTicksLimit: 8,
+              maxRotation: 0,
+            },
+            grid: {
+              color: "rgba(255,255,255,0.03)",
+            },
+          },
+          y: {
+            display: true,
+            min: min - (max - min) * 0.05,
+            max: max + (max - min) * 0.05,
+            ticks: {
+              color: "#334155",
+              font: { size: 9 },
+              maxTicksLimit: 5,
+            },
+            grid: {
+              color: "rgba(255,255,255,0.03)",
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // Open overlay
+  document.getElementById("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+
+// ── MODAL CLOSE ───────────────────────────────────────────────
+function closeModal() {
+  document.getElementById("modal-overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+document.getElementById("modal-close").addEventListener("click", closeModal);
+
+document.getElementById("modal-overlay").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeModal();
+});
+
+
+// ── TITLE POSITION FIX ────────────────────────────────────────
+// Push Leaflet zoom controls down so they don't overlap the title
+const zoomControl = document.querySelector(".leaflet-control-zoom");
+if (zoomControl) {
+  zoomControl.style.marginTop = "70px";
+}

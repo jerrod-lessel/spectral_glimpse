@@ -23,7 +23,28 @@ const INDEX_CONFIG = {
   bsi:  { label: "BSI",  color: "#fb923c", min: -0.5, max: 0.3  },
 };
 
+// ── MOCK MODE — set to false when API is deployed ──────────
+const MOCK_MODE = true;
 
+const MOCK_DATA = {
+  composite_date: "Mar 30 2026",
+  indices: {
+    ndvi: { label:"NDVI", value:0.42, interpretation:"Moderate vegetation — grassland or dry shrubland typical of coastal foothills." },
+    evi2: { label:"EVI2", value:0.31, interpretation:"Sparse to moderate vegetation cover with reduced atmosphere sensitivity." },
+    nbr:  { label:"NBR",  value:0.38, interpretation:"Healthy unburned vegetation. Low single-date burn risk indicator." },
+    ndmi: { label:"NDMI", value:0.12, interpretation:"Moderate moisture — vegetation mildly stressed, typical of late dry season." },
+    ndsi: { label:"NDSI", value:-0.18,interpretation:"No snow or ice detected at this elevation and location." },
+    bsi:  { label:"BSI",  value:0.08, interpretation:"Mixed vegetation and bare soil — moderate ground exposure." },
+  },
+  history: {
+    ndvi: Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.42 + (Math.sin(i/8)*0.15) + (Math.random()*0.06-0.03) })),
+    evi2: Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.31 + (Math.sin(i/8)*0.10) + (Math.random()*0.05-0.025) })),
+    nbr:  Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.38 + (Math.sin(i/10)*0.20) + (Math.random()*0.06-0.03) })),
+    ndmi: Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.12 + (Math.sin(i/8)*0.12) + (Math.random()*0.04-0.02) })),
+    ndsi: Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: -0.18 + (Math.sin(i/12)*0.08) + (Math.random()*0.03-0.015) })),
+    bsi:  Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.08 + (Math.sin(i/9)*0.08) + (Math.random()*0.04-0.02) })),
+  }
+};
 // ── MAP INIT ──────────────────────────────────────────────────
 const map = L.map("map", {
   center: [37.5, -119.5],
@@ -319,6 +340,10 @@ map.on("click", async function (e) {
 
 // ── API CALL ──────────────────────────────────────────────────
 async function fetchSample(lat, lon) {
+  if (MOCK_MODE) {
+    await new Promise(r => setTimeout(r, 600)); // fake loading delay
+    return MOCK_DATA;
+  }
   try {
     const resp = await fetch(
       `${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`

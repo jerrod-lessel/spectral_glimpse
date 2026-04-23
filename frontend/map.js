@@ -652,6 +652,6 @@ document.addEventListener("keydown", function(e) {
 // Push Leaflet zoom controls down so they don't overlap the title
 const zoomControl = document.querySelector(".leaflet-control-zoom");
 if (zoomControl) {
-  zoomControl.style.marginTop = "80px";
+  zoomControl.style.marginTop = "85px";
   zoomControl.style.marginLeft = "15px";
 }

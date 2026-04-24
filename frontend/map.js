@@ -553,35 +553,43 @@ function openModal(key, data) {
   // Populate modal
   document.getElementById("modal-index-name").textContent =
     key.toUpperCase();
-  document.getElementById("modal-index-label").textContent =
-    idx.label || key.toUpperCase();
+  const FULL_NAMES = {
+     ndvi: "Normalized Difference Vegetation Index",
+     evi2: "Enhanced Vegetation Index 2",
+     nbr:  "Normalized Burn Ratio",
+     ndmi: "Normalized Difference Moisture Index",
+     ndsi: "Normalized Difference Snow Index",
+     bsi:  "Bare Soil Index",
+   };
+   document.getElementById("modal-index-label").textContent =
+       FULL_NAMES[key] || idx.label || key.toUpperCase();
   document.getElementById("modal-description").innerHTML = `
-  <div style="margin-bottom:10px;">${cfg.what || idx.description || ""}</div>
-  <div style="
-    background:#1a1f2e;
-    border:0.5px solid rgba(255,255,255,0.07);
-    border-radius:8px;
-    padding:8px 12px;
-    margin-bottom:10px;
-    font-family:monospace;
-    font-size:11px;
-    color:#94a3b8;
-  ">
-    <span style="color:#475569;font-size:10px;letter-spacing:0.05em;">EQUATION &nbsp;</span>
-    ${cfg.equation || ""}
-  </div>
-  ${cfg.trend_context ? `
-  <div style="
-    font-size:11px;
-    color:#64748b;
-    line-height:1.6;
-    border-top:0.5px solid rgba(255,255,255,0.05);
-    padding-top:10px;
-  ">
-    <span style="font-size:10px;letter-spacing:0.05em;color:#334155;">TREND CONTEXT &nbsp;</span><br/>
-    ${cfg.trend_context}
-  </div>` : ""}
-`;
+     <div style="margin-bottom:10px;">${cfg.what || idx.description || ""}</div>
+     <div style="
+       background:#1a1f2e;
+       border:0.5px solid rgba(255,255,255,0.07);
+       border-radius:8px;
+       padding:8px 12px;
+       margin-bottom:10px;
+       font-family:monospace;
+       font-size:11px;
+       color:#94a3b8;
+     ">
+       <span style="color:#475569;font-size:10px;letter-spacing:0.05em;">EQUATION &nbsp;</span>
+       ${cfg.equation || ""}
+     </div>
+     ${cfg.trend_context ? `
+     <div style="
+       font-size:11px;
+       color:#64748b;
+       line-height:1.6;
+       border-top:0.5px solid rgba(255,255,255,0.05);
+       padding-top:10px;
+     ">
+       <span style="font-size:10px;letter-spacing:0.05em;color:#334155;">TREND CONTEXT &nbsp;</span><br/>
+       ${cfg.trend_context}
+     </div>` : ""}
+   `;
 
   // Gauges
   document.getElementById("modal-gauge-current").innerHTML =

@@ -19,7 +19,7 @@ const INDEX_CONFIG = {
     label: "NDVI",
     color: "#4ade80",
     min: 0.0, max: 0.9,
-    what: "Compares how much red light plants absorb versus how much near-infrared they reflect. Healthy vegetation absorbs red for photosynthesis and strongly reflects NIR — the bigger that gap, the greener and healthier the canopy.",
+    what: "Compares how much red light plants absorb versus how much near-infrared they reflect. Healthy vegetation absorbs red for photosynthesis and strongly reflects NIR, the bigger that gap, the greener and healthier the canopy.",
     equation: "(NIR − Red) / (NIR + Red)",
     trend_context: "A declining NDVI trend can signal drought stress, seasonal senescence, post-fire recovery lag, or land cover change. A rising trend often reflects rainfall response, crop growth, or vegetation recovery after disturbance."
   },
@@ -27,7 +27,7 @@ const INDEX_CONFIG = {
     label: "EVI2",
     color: "#86efac",
     min: -0.1, max: 0.7,
-    what: "A refinement of NDVI that reduces atmospheric interference and soil background effects. More reliable than NDVI in dense canopy or hazy conditions — both common in California's Central Valley and coastal fog zones.",
+    what: "A refinement of NDVI that reduces atmospheric interference and soil background effects. More reliable than NDVI in dense canopy or hazy conditions, both common in California's Central Valley and coastal fog zones.",
     equation: "2.5 × (NIR − Red) / (NIR + 2.4 × Red + 1)",
     trend_context: "EVI2 trends often track seasonal agricultural cycles in the Central Valley. A divergence between EVI2 and NDVI can suggest changing atmospheric conditions or shifts in canopy density."
   },
@@ -35,15 +35,15 @@ const INDEX_CONFIG = {
     label: "NBR",
     color: "#fbbf24",
     min: -1.0, max: 1.0,
-    what: "Sensitive to the charred carbon and exposed soil that fire leaves behind. Unburned vegetation has high NIR and low SWIR reflectance. Fire flips that relationship — dropping NIR and raising SWIR dramatically.",
+    what: "Sensitive to the charred carbon and exposed soil that fire leaves behind. Unburned vegetation has high NIR and low SWIR reflectance. Fire flips that relationship, dropping NIR and raising SWIR dramatically.",
     equation: "(NIR − SWIR) / (NIR + SWIR)",
-    trend_context: "A sudden NBR drop followed by gradual recovery is the classic post-fire signal. Note: this is single-date NBR — true burn severity mapping requires pre/post delta-NBR (dNBR). Use this as a risk indicator, not a definitive burn map."
+    trend_context: "A sudden NBR drop followed by gradual recovery is the classic post-fire signal. Note: this is single-date NBR while true burn severity mapping requires pre/post delta-NBR (dNBR). Use this as a risk indicator, not a definitive burn map."
   },
   ndmi: {
     label: "NDMI",
     color: "#38bdf8",
     min: -0.3, max: 0.5,
-    what: "Tracks liquid water held in vegetation canopy. SWIR wavelengths are absorbed by water — so when vegetation dries out, SWIR reflectance rises and NDMI drops. A reliable early indicator of drought stress and elevated fire weather risk.",
+    what: "Tracks liquid water held in vegetation canopy. SWIR wavelengths are absorbed by water, so when vegetation dries out, SWIR reflectance rises and NDMI drops. A reliable early indicator of drought stress and elevated fire weather risk.",
     equation: "(NIR − SWIR) / (NIR + SWIR)",
     trend_context: "NDMI typically drops through California's dry season (June–October) and recovers after winter rains. A trend that fails to recover after the wet season can signal multi-year drought stress accumulating in the landscape."
   },
@@ -51,15 +51,15 @@ const INDEX_CONFIG = {
     label: "NDSI",
     color: "#cbd5e1",
     min: -0.5, max: 0.8,
-    what: "Snow and ice strongly absorb SWIR wavelengths while reflecting visible light — making the contrast between visible and SWIR a reliable snow detector. Values above 0.4 generally indicate snow-covered ground.",
+    what: "Snow and ice strongly absorb SWIR wavelengths while reflecting visible light, making the contrast between visible and SWIR a reliable snow detector. Values above 0.4 generally indicate snow-covered ground.",
     equation: "(Red − SWIR) / (Red + SWIR)",
-    trend_context: "Sierra Nevada snowpack is California's largest freshwater reservoir. Declining NDSI in winter months or earlier spring melt timing are important climate signals. Note: the standard NDSI uses a Green band rather than Red, since snow is especially bright in green wavelengths. VIIRS VNP09H1 lacks a green I-band so Red is used as a substitute — the index remains a useful snow indicator but may slightly underperform the classic formulation in marginal snow conditions.",
+    trend_context: "Sierra Nevada snowpack is California's largest freshwater reservoir. Declining NDSI in winter months or earlier spring melt timing are important climate signals. Note: the standard NDSI uses a Green band rather than Red, since snow is especially bright in green wavelengths. VIIRS VNP09H1 lacks a green I-band so Red is used as a substitute, the index remains a useful snow indicator but may slightly underperform the classic formulation in marginal snow conditions.",
   },
   bsi: {
     label: "BSI",
     color: "#fb923c",
     min: -0.5, max: 0.3,
-    what: "Combines SWIR, Red, and NIR to isolate bare mineral soil from vegetated surfaces. Bare soil has high SWIR and Red reflectance but low NIR — the inverse of healthy vegetation. Rises sharply after fire removes ground cover.",
+    what: "Combines SWIR, Red, and NIR to isolate bare mineral soil from vegetated surfaces. Bare soil has high SWIR and Red reflectance but low NIR, the inverse of healthy vegetation. Rises sharply after fire removes ground cover.",
     equation: "((SWIR + Red) − NIR) / ((SWIR + Red) + NIR)",
     trend_context: "A rising BSI trend after a stable period can indicate post-fire soil exposure, drought-driven vegetation loss, or agricultural harvest cycles. Elevated BSI increases erosion and runoff risk, particularly on steep terrain."
   },

@@ -85,11 +85,11 @@ def interpret(index_name: str, value: float) -> str:
 
     interpretations = {
         "ndvi": [
-            (-1.0, 0.0,  "No vegetation — likely water, bare soil, or urban surface."),
+            (-1.0, 0.0,  "No vegetation and likely water, bare soil, or urban surface."),
             ( 0.0, 0.2,  "Very sparse vegetation or heavily stressed plants."),
-            ( 0.2, 0.4,  "Sparse to moderate vegetation — shrubland or dry grassland."),
-            ( 0.4, 0.6,  "Moderate vegetation — grassland or agriculture."),
-            ( 0.6, 0.8,  "Dense healthy vegetation — forest or irrigated crops."),
+            ( 0.2, 0.4,  "Sparse to moderate vegetation, shrubland or dry grassland."),
+            ( 0.4, 0.6,  "Moderate vegetation, grassland or agriculture."),
+            ( 0.6, 0.8,  "Dense healthy vegetation, forest or irrigated crops."),
             ( 0.8, 1.0,  "Very dense, highly productive vegetation."),
         ],
         "evi2": [
@@ -100,18 +100,18 @@ def interpret(index_name: str, value: float) -> str:
             ( 0.7, 1.0,  "Very dense productive vegetation."),
         ],
         "nbr": [
-            (-1.0, -0.5, "High likelihood of severe burn — heavily charred area."),
+            (-1.0, -0.5, "High likelihood of severe burn, heavily charred area."),
             (-0.5, -0.25,"Moderate to high burn severity."),
             (-0.25, 0.1, "Low burn severity or recently disturbed ground."),
             ( 0.1, 0.4,  "Sparse or stressed vegetation."),
             ( 0.4, 1.0,  "Healthy unburned vegetation."),
         ],
         "ndmi": [
-            (-1.0, -0.2, "Very dry vegetation — high fire risk."),
+            (-1.0, -0.2, "Very dry vegetation, high fire risk."),
             (-0.2,  0.0, "Dry to moderately dry vegetation."),
             ( 0.0,  0.2, "Moderate moisture levels."),
             ( 0.2,  0.4, "Moist, well-watered vegetation."),
-            ( 0.4,  1.0, "Very high moisture — wetland or irrigated area."),
+            ( 0.4,  1.0, "Very high moisture, wetland or irrigated area."),
         ],
         "ndsi": [
             (-1.0,  0.0, "No snow or ice detected."),
@@ -120,10 +120,10 @@ def interpret(index_name: str, value: float) -> str:
             ( 0.4,  1.0, "Snow or ice covered surface."),
         ],
         "bsi": [
-            (-1.0, -0.1, "Dense vegetation — minimal bare soil exposed."),
+            (-1.0, -0.1, "Dense vegetation, minimal bare soil exposed."),
             (-0.1,  0.0, "Mostly vegetated with some bare patches."),
             ( 0.0,  0.1, "Mixed vegetation and bare soil."),
-            ( 0.1,  0.2, "Significant bare soil exposure — degraded or post-fire."),
+            ( 0.1,  0.2, "Significant bare soil exposure, degraded or post-fire."),
             ( 0.2,  1.0, "Highly exposed bare soil or urban surface."),
         ],
     }

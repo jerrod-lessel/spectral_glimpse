@@ -24,6 +24,7 @@ Environment variables required:
 
 import os
 import boto3
+import json
 from pathlib import Path
 from pipeline.fetch import authenticate, search_tiles, download_tiles
 from pipeline.cog import extract_bands, write_cog

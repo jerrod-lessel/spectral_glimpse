@@ -82,38 +82,18 @@ def get_r2_cog_url(r2_key: str) -> str:
     return f"{base}/{r2_key}"
 
 def sample_cog(url: str, lat: float, lon: float) -> float | None:
-    """
-    Reads a single pixel value from a COG at a given lat/lon
-    using GDAL vsicurl for HTTP range requests.
-    """
     try:
-        from osgeo import gdal
-        gdal.UseExceptions()
-
         vsicurl_url = f"/vsicurl/{url}"
-        ds = gdal.Open(vsicurl_url)
-        if ds is None:
-            return None
-
-        # Get geotransform to convert lat/lon to pixel coords
-        gt = ds.GetGeoTransform()
-        col = int((lon - gt[0]) / gt[1])
-        row = int((lat - gt[3]) / gt[5])
-
-        # Bounds check
-        if row < 0 or col < 0 or row >= ds.RasterYSize or col >= ds.RasterXSize:
-            return None
-
-        band  = ds.GetRasterBand(1)
-        value = band.ReadAsArray(col, row, 1, 1)[0][0]
-        ds    = None  # Close dataset
-
-        value = float(value)
-        if np.isnan(value):
-            return None
-
-        return round(value, 4)
-
+        with rasterio.open(vsicurl_url) as src:
+            row, col = src.index(lon, lat)
+            if row < 0 or col < 0 or row >= src.height or col >= src.width:
+                return None
+            window = rasterio.windows.Window(col, row, 1, 1)
+            data   = src.read(1, window=window, masked=False)
+            value  = float(data[0][0])
+            if np.isnan(value):
+                return None
+            return round(value, 4)
     except Exception:
         return None
 

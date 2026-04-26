@@ -11,4 +11,3 @@ flask
 flask-cors
 gunicorn
 boto3
-GDAL==3.6.4

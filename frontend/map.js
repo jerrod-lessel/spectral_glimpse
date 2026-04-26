@@ -292,51 +292,6 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-
-// ── BUILD INDEX CARDS ─────────────────────────────────────────
-function buildCards(data) {
-  cardsScroll.innerHTML = "";
-
-  // data.indices is keyed by index name
-  // data.history is keyed by index name -> array of { date, value }
-  Object.entries(data.indices).forEach(([key, idx]) => {
-    const cfg     = INDEX_CONFIG[key] || {};
-    const color   = cfg.color || "#94a3b8";
-    const min     = cfg.min ?? -1;
-    const max     = cfg.max ?? 1;
-    const canvasId = `spark-${key}`;
-
-    const card = document.createElement("div");
-    card.className = "index-card";
-    card.innerHTML = `
-      <div class="card-name">${idx.label || key.toUpperCase()}</div>
-      <div class="card-body">
-        <div class="gauge-side">
-          ${idx.value !== null
-            ? makeGauge(idx.value, min, max, color)
-            : `<div style="width:72px;height:52px;display:flex;align-items:center;
-                justify-content:center;font-size:10px;color:#334155;">no data</div>`
-          }
-        </div>
-        <div class="spark-side">
-          <canvas id="${canvasId}" width="158" height="52"></canvas>
-        </div>
-      </div>
-      <div class="card-interp">${idx.interpretation || ""}</div>
-    `;
-    cardsScroll.appendChild(card);
-
-    // Render sparkline after card is in DOM
-    if (data.history && data.history[key]) {
-      const history = data.history[key];
-      const labels  = history.map(h => h.date);
-      const values  = history.map(h => h.value);
-      renderSparkline(canvasId, labels, values, color, min, max);
-    }
-  });
-}
-
-
 // ── MAIN CLICK HANDLER ────────────────────────────────────────
 map.on("click", async function (e) {
   const { lat, lng } = e.latlng;
@@ -442,30 +397,14 @@ document.body.insertAdjacentHTML("beforeend", `
 // Store last API data so modal can reference it
 let lastApiData = null;
 
-// Override buildCards to store data and attach click handlers
-const _origBuildCards = buildCards;
-window.buildCards = function(data) {
-  lastApiData = data;
-  _origBuildCards(data);
-
-  // Attach click handler to each card after they're built
-  document.querySelectorAll(".index-card").forEach(card => {
-    card.style.cursor = "pointer";
-    card.addEventListener("click", () => {
-      const key = card.dataset.indexKey;
-      if (key && lastApiData) openModal(key, lastApiData);
-    });
-  });
-};
-
-// Update buildCards to stamp data-index-key on each card
-// We do this by patching the card creation in buildCards
-const _origBuildCardsInner = buildCards;
 function buildCards(data) {
   lastApiData = data;
   cardsScroll.innerHTML = "";
 
-  Object.entries(data.indices).forEach(([key, idx]) => {
+  const INDEX_ORDER = ["ndvi", "evi2", "nbr", "ndmi", "ndsi", "bsi"];
+   INDEX_ORDER.forEach(key => {
+     const idx = data.indices[key];
+     if (!idx) return;
     const cfg      = INDEX_CONFIG[key] || {};
     const color    = cfg.color || "#94a3b8";
     const min      = cfg.min ?? -1;

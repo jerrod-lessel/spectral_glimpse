@@ -41,7 +41,7 @@ ENV MODE=${MODE}
 CMD if [ "$MODE" = "pipeline" ]; then \
         python main.py; \
     else \
-        gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 60 api.sample:app; \
+        gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 api.sample:app; \
     fi
 
 EXPOSE 8080

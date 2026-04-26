@@ -18,7 +18,10 @@ WORKDIR /app
 # Install system dependencies needed by rasterio
 RUN apt-get update && apt-get install -y \
     libgdal-dev \
+    gdal-bin \
+    python3-gdal \
     gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

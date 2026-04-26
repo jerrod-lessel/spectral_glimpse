@@ -89,7 +89,9 @@ def sample_cog(url: str, lat: float, lon: float) -> float | None:
     file is downloaded, not the whole COG.
     """
     try:
-        with rasterio.open(url) as src:
+        # Use GDAL's vsicurl driver to read COGs over HTTP
+        vsicurl_url = f"/vsicurl/{url}"
+        with rasterio.open(vsicurl_url) as src:
             row, col = src.index(lon, lat)
             window   = rasterio.windows.Window(col, row, 1, 1)
             data     = src.read(1, window=window)

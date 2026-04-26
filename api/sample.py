@@ -233,25 +233,23 @@ def history():
     try:
         lat = float(request.args.get("lat"))
         lon = float(request.args.get("lon"))
+        # Allow caller to request more entries, default to 12
+        limit = min(int(request.args.get("limit", 12)), 91)
     except (TypeError, ValueError):
         return jsonify({"error": "lat and lon are required numeric parameters"}), 400
 
     if not (32.5 <= lat <= 42.1 and -124.5 <= lon <= -114.1):
         return jsonify({"error": "Coordinates appear to be outside California"}), 400
 
-    # Sample current values from each COG in the manifest
-    # and return as time series — one JSON fetch per index
     manifest = get_manifest()
     if not manifest:
         return jsonify({"error": "No data available yet."}), 503
 
-    history = {name: [] for name in INDEX_META.keys()}
+    # Take only the most recent N entries
+    recent   = manifest[-limit:]
+    history  = {name: [] for name in INDEX_META.keys()}
 
-    # Only sample every other entry to reduce load
-    # 91 entries -> 46 samples, still plenty for trend analysis
-    sampled = manifest[::2]
-
-    for entry in sampled:
+    for entry in recent:
         for index_name in INDEX_META.keys():
             r2_key = entry["indices"].get(index_name)
             if not r2_key:

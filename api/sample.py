@@ -228,28 +228,8 @@ def sample():
         "indices":        results
     })
 
-
 @app.route("/history")
 def history():
-    """
-    Returns 2-year time series for all indices at a lat/lon point.
-
-    GET /history?lat=37.5&lon=-119.5
-
-    Response:
-    {
-        "lat": 37.5,
-        "lon": -119.5,
-        "history": {
-            "ndvi": [
-                {"date": "Mar 30 2026", "value": 0.42},
-                {"date": "Mar 22 2026", "value": 0.39},
-                ...
-            ],
-            ...
-        }
-    }
-    """
     try:
         lat = float(request.args.get("lat"))
         lon = float(request.args.get("lon"))
@@ -263,26 +243,53 @@ def history():
     if not manifest:
         return jsonify({"error": "No data available yet."}), 503
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     history = {name: [] for name in INDEX_META.keys()}
 
-    for entry in manifest:
-        for index_name in INDEX_META.keys():
-            r2_key = entry["indices"].get(index_name)
-            if not r2_key:
-                continue
-            value = sample_cog(get_r2_cog_url(r2_key), lat, lon)
-            if value is not None:
-                history[index_name].append({
-                    "date":  entry.get("date_label", entry.get("date", "")),
-                    "value": value
+    def sample_entry(entry, index_name):
+        r2_key = entry["indices"].get(index_name)
+        if not r2_key:
+            return None
+        value = sample_cog(get_r2_cog_url(r2_key), lat, lon)
+        if value is None:
+            return None
+        return {
+            "index_name": index_name,
+            "date":       entry.get("date_label", entry.get("date", "")),
+            "value":      value
+        }
+
+    # Build list of all tasks
+    tasks = [
+        (entry, index_name)
+        for entry in manifest
+        for index_name in INDEX_META.keys()
+    ]
+
+    # Run concurrently with up to 20 threads
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {
+            executor.submit(sample_entry, entry, index_name): (entry, index_name)
+            for entry, index_name in tasks
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                history[result["index_name"]].append({
+                    "date":  result["date"],
+                    "value": result["value"]
                 })
+
+    # Sort each index by date
+    for index_name in history:
+        history[index_name].sort(key=lambda x: x["date"])
 
     return jsonify({
         "lat":     lat,
         "lon":     lon,
         "history": history
     })
-
 
 # ── ENTRYPOINT ────────────────────────────────────────────────────────────────
 

@@ -81,29 +81,39 @@ def get_r2_cog_url(r2_key: str) -> str:
     base = os.environ["R2_PUBLIC_URL"].rstrip("/")
     return f"{base}/{r2_key}"
 
-
 def sample_cog(url: str, lat: float, lon: float) -> float | None:
     """
     Reads a single pixel value from a COG at a given lat/lon
-    using an HTTP range request -- only a tiny slice of the
-    file is downloaded, not the whole COG.
+    using an HTTP range request via GDAL vsicurl.
     """
     try:
-        # Use GDAL's vsicurl driver to read COGs over HTTP
         vsicurl_url = f"/vsicurl/{url}"
         with rasterio.open(vsicurl_url) as src:
             row, col = src.index(lon, lat)
-            window   = rasterio.windows.Window(col, row, 1, 1)
-            data     = src.read(1, window=window)
-            value    = float(data[0][0])
-            if src.nodata is not None and value == src.nodata:
+
+            # Bounds check — make sure pixel is within the raster
+            if row < 0 or col < 0 or row >= src.height or col >= src.width:
+                return None
+
+            window = rasterio.windows.Window(col, row, 1, 1)
+
+            # Read as raw numpy array without mask processing
+            # This avoids the enum compatibility issue in some
+            # rasterio/GDAL version combinations
+            data = src.read(1, window=window, masked=False)
+            value = float(data[0][0])
+
+            # Check for nodata manually
+            nodata = src.nodata
+            if nodata is not None and value == nodata:
                 return None
             if np.isnan(value):
                 return None
+
             return round(value, 4)
+
     except Exception:
         return None
-
 
 def interpret(index_name: str, value: float) -> str:
     """

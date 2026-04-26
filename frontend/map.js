@@ -5,7 +5,7 @@
 
 // ── CONFIG ────────────────────────────────────────────────────
 // Swap this for your deployed Cloud Run API URL when live
-const API_BASE = "https://your-api-url.run.app";
+const API_BASE = "https://spectral-glimpse-api-1087489116508.us-west1.run.app";
 
 // Fallback for local testing — points at localhost
 const API_URL = window.location.hostname === "localhost"
@@ -66,7 +66,7 @@ const INDEX_CONFIG = {
 };
 
 // ── MOCK MODE — set to false when API is deployed ──────────
-const MOCK_MODE = true;
+const MOCK_MODE = false;
 
 const MOCK_DATA = {
   composite_date: "Mar 30 2026",

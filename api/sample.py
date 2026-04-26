@@ -84,33 +84,35 @@ def get_r2_cog_url(r2_key: str) -> str:
 def sample_cog(url: str, lat: float, lon: float) -> float | None:
     """
     Reads a single pixel value from a COG at a given lat/lon
-    using an HTTP range request via GDAL vsicurl.
+    using GDAL vsicurl for HTTP range requests.
     """
     try:
+        from osgeo import gdal
+        gdal.UseExceptions()
+
         vsicurl_url = f"/vsicurl/{url}"
-        with rasterio.open(vsicurl_url) as src:
-            row, col = src.index(lon, lat)
+        ds = gdal.Open(vsicurl_url)
+        if ds is None:
+            return None
 
-            # Bounds check — make sure pixel is within the raster
-            if row < 0 or col < 0 or row >= src.height or col >= src.width:
-                return None
+        # Get geotransform to convert lat/lon to pixel coords
+        gt = ds.GetGeoTransform()
+        col = int((lon - gt[0]) / gt[1])
+        row = int((lat - gt[3]) / gt[5])
 
-            window = rasterio.windows.Window(col, row, 1, 1)
+        # Bounds check
+        if row < 0 or col < 0 or row >= ds.RasterYSize or col >= ds.RasterXSize:
+            return None
 
-            # Read as raw numpy array without mask processing
-            # This avoids the enum compatibility issue in some
-            # rasterio/GDAL version combinations
-            data = src.read(1, window=window, masked=False)
-            value = float(data[0][0])
+        band  = ds.GetRasterBand(1)
+        value = band.ReadAsArray(col, row, 1, 1)[0][0]
+        ds    = None  # Close dataset
 
-            # Check for nodata manually
-            nodata = src.nodata
-            if nodata is not None and value == nodata:
-                return None
-            if np.isnan(value):
-                return None
+        value = float(value)
+        if np.isnan(value):
+            return None
 
-            return round(value, 4)
+        return round(value, 4)
 
     except Exception:
         return None

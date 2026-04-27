@@ -344,7 +344,7 @@ async function fetchSample(lat, lon) {
   try {
     const [sampleResp, historyResp] = await Promise.all([
       fetch(`${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`),
-      fetch(`${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`)
+      fetch(`${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=91`)
     ]);
 
     if (!sampleResp.ok) return null;

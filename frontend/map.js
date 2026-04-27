@@ -296,23 +296,17 @@ function hexToRgba(hex, alpha) {
 map.on("click", async function (e) {
   const { lat, lng } = e.latlng;
 
-  // Rough California bounds check
-  if (lat < 32.5 || lat > 42.1 || lng < -124.5 || lng > -114.1) {
-    return;
-  }
+  if (lat < 32.5 || lat > 42.1 || lng < -124.5 || lng > -114.1) return;
 
-  // Place marker + open sidebar in loading state
   placeMarker(e.latlng);
   clickHint.classList.add("hidden");
   showSidebar();
   showLoading();
 
-  // Update coords immediately
-  coordsEl.textContent  = formatCoords(lat, lng);
+  coordsEl.textContent   = formatCoords(lat, lng);
   locationEl.textContent = "Loading...";
-  dateEl.textContent    = "";
+  dateEl.textContent     = "";
 
-  // Reverse geocode in parallel with API call
   const [locationName, apiData] = await Promise.all([
     reverseGeocode(lat, lng),
     fetchSample(lat, lng),
@@ -325,15 +319,52 @@ map.on("click", async function (e) {
     return;
   }
 
-  // Update date badge
   if (apiData.composite_date) {
     dateEl.textContent = `VIIRS 8-day · ${apiData.composite_date}`;
   }
 
+  // Show cards immediately with loading sparklines
   buildCards(apiData);
   showCards();
-});
 
+  // Show loading state in each sparkline canvas
+  Object.keys(INDEX_CONFIG).forEach(key => {
+    const canvas = document.getElementById(`spark-${key}`);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.font = "9px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("loading history...", canvas.width / 2, canvas.height / 2);
+  });
+
+  // Load history in background
+  const history = await fetchHistory(lat, lng);
+
+  if (history) {
+    // Update sparklines with real data
+    Object.entries(history).forEach(([key, entries]) => {
+      if (!entries.length) return;
+      const cfg      = INDEX_CONFIG[key] || {};
+      const color    = cfg.color || "#94a3b8";
+      const min      = cfg.min ?? -1;
+      const max      = cfg.max ?? 1;
+      const canvasId = `spark-${key}`;
+      renderSparkline(
+        canvasId,
+        entries.map(h => h.date),
+        entries.map(h => h.value),
+        color, min, max
+      );
+    });
+
+    // Also update modal data if it's open
+    if (lastApiData) {
+      lastApiData.history = history;
+    }
+  }
+});
 
 // ── API CALL ──────────────────────────────────────────────────
 async function fetchSample(lat, lon) {
@@ -342,24 +373,34 @@ async function fetchSample(lat, lon) {
     return MOCK_DATA;
   }
   try {
-    const [sampleResp, historyResp] = await Promise.all([
-      fetch(`${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`),
-      fetch(`${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=91`)
-    ]);
-
+    // Load current values immediately — this is fast (~2 seconds)
+    const sampleResp = await fetch(
+      `${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`
+    );
     if (!sampleResp.ok) return null;
+    const sampleData = await sampleResp.json();
 
-    const sampleData  = await sampleResp.json();
-    const historyData = historyResp.ok ? await historyResp.json() : null;
-
-    // Merge history into sample response
-    if (historyData && historyData.history) {
-      sampleData.history = historyData.history;
-    }
-
+    // Return current data right away so sidebar opens fast
+    // History will load in the background
+    sampleData.history = null;
     return sampleData;
+
   } catch (err) {
     console.error("API error:", err);
+    return null;
+  }
+}
+
+async function fetchHistory(lat, lon) {
+  try {
+    const resp = await fetch(
+      `${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=91`
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.history || null;
+  } catch (err) {
+    console.error("History API error:", err);
     return null;
   }
 }

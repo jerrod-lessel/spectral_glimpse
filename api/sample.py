@@ -84,16 +84,22 @@ def get_r2_cog_url(r2_key: str) -> str:
 def sample_cog(url: str, lat: float, lon: float) -> float | None:
     try:
         vsicurl_url = f"/vsicurl/{url}"
-        with rasterio.open(vsicurl_url) as src:
-            row, col = src.index(lon, lat)
-            if row < 0 or col < 0 or row >= src.height or col >= src.width:
-                return None
-            window = rasterio.windows.Window(col, row, 1, 1)
-            data   = src.read(1, window=window, masked=False)
-            value  = float(data[0][0])
-            if np.isnan(value):
-                return None
-            return round(value, 4)
+        with rasterio.Env(
+            GDAL_HTTP_UNSAFESSL=True,
+            CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE="NO",
+            GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
+            CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif",
+        ):
+            with rasterio.open(vsicurl_url) as src:
+                row, col = src.index(lon, lat)
+                if row < 0 or col < 0 or row >= src.height or col >= src.width:
+                    return None
+                window = rasterio.windows.Window(col, row, 1, 1)
+                data   = src.read(1, window=window, masked=False)
+                value  = float(data[0][0])
+                if np.isnan(value):
+                    return None
+                return round(value, 4)
     except Exception:
         return None
 

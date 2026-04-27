@@ -273,11 +273,6 @@ def history():
         "history": history
     })
 
-# ── ENTRYPOINT ────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    app.run(debug=True, port=8080)
-
 @app.route("/debug")
 def debug():
     """Single COG read test."""
@@ -296,3 +291,8 @@ def debug():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ── ENTRYPOINT ────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    app.run(debug=True, port=8080)

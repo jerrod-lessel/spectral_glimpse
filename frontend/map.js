@@ -338,21 +338,36 @@ map.on("click", async function (e) {
   const history = await fetchHistory(lat, lng);
 
   if (history) {
-    // Update sparklines with real data
-    Object.entries(history).forEach(([key, entries]) => {
-      if (!entries.length) return;
-      const cfg      = INDEX_CONFIG[key] || {};
-      const color    = cfg.color || "#94a3b8";
-      const min      = cfg.min ?? -1;
-      const max      = cfg.max ?? 1;
-      const canvasId = `spark-${key}`;
-      renderSparkline(
-        canvasId,
-        entries.map(h => h.date),
-        entries.map(h => h.value),
-        color, min, max
-      );
-    });
+  Object.entries(history).forEach(([key, entries]) => {
+    if (!entries.length) return;
+    const cfg      = INDEX_CONFIG[key] || {};
+    const color    = cfg.color || "#94a3b8";
+    const min      = cfg.min ?? -1;
+    const max      = cfg.max ?? 1;
+    const canvasId = `spark-${key}`;
+
+    // Restore canvas element replacing the skeleton
+    const sparkSide = document.querySelector(`#${canvasId}`)?.parentElement
+      || document.querySelector(`.spark-side`);
+
+    // Find the right spark-side by looking up from card
+    const card = document.querySelector(`[data-index-key="${key}"] .spark-side`);
+    if (card) {
+      card.innerHTML = `<canvas id="${canvasId}" width="158" height="52"></canvas>`;
+    }
+
+    renderSparkline(
+      canvasId,
+      entries.map(h => h.date),
+      entries.map(h => h.value),
+      color, min, max
+    );
+  });
+
+  if (lastApiData) {
+    lastApiData.history = history;
+  }
+}
 
     // Also update modal data if it's open
     if (lastApiData) {

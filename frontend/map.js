@@ -328,10 +328,41 @@ map.on("click", async function (e) {
   showCards();
 
   // Show loading state in each sparkline canvas
-   Object.keys(INDEX_CONFIG).forEach(key => {
-     const sparkSide = document.querySelector(`#spark-${key}`)?.parentElement;
-     if (!sparkSide) return;
-     sparkSide.innerHTML = '<div class="spark-skeleton"></div>';
+   const loadMessages = [
+     "pulling 2 years of satellite data...",
+     "free data takes a moment 🛰️",
+     "good things come to those who wait",
+     "querying the archive...",
+     "worth the wait, we promise",
+     "just remember, this is still free",
+     "man that's a lot of data!",
+   ];
+   const randomMsg = loadMessages[Math.floor(Math.random() * loadMessages.length)];
+   
+   Object.keys(INDEX_CONFIG).forEach((key, i) => {
+     const card = document.querySelector(`[data-index-key="${key}"] .spark-side`);
+     if (!card) return;
+     if (i === 0) {
+       // First card gets the fun message
+       card.innerHTML = `
+         <div class="spark-skeleton" style="position:relative;">
+           <div style="
+             position:absolute;
+             inset:0;
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             font-size:9px;
+             color:rgba(255,255,255,0.3);
+             font-family:monospace;
+             white-space:nowrap;
+             overflow:hidden;
+             padding:0 6px;
+           ">${randomMsg}</div>
+         </div>`;
+     } else {
+       card.innerHTML = '<div class="spark-skeleton"></div>';
+     }
    });
 
   // Load history in background

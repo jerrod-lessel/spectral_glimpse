@@ -338,17 +338,28 @@ map.on("click", async function (e) {
 // ── API CALL ──────────────────────────────────────────────────
 async function fetchSample(lat, lon) {
   if (MOCK_MODE) {
-    await new Promise(r => setTimeout(r, 600)); // fake loading delay
+    await new Promise(r => setTimeout(r, 600));
     return MOCK_DATA;
   }
   try {
-    const resp = await fetch(
-      `${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`
-    );
-    if (!resp.ok) return null;
-    return await resp.json();
+    const [sampleResp, historyResp] = await Promise.all([
+      fetch(`${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`),
+      fetch(`${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`)
+    ]);
+
+    if (!sampleResp.ok) return null;
+
+    const sampleData  = await sampleResp.json();
+    const historyData = historyResp.ok ? await historyResp.json() : null;
+
+    // Merge history into sample response
+    if (historyData && historyData.history) {
+      sampleData.history = historyData.history;
+    }
+
+    return sampleData;
   } catch (err) {
-    console.error("Sample API error:", err);
+    console.error("API error:", err);
     return null;
   }
 }

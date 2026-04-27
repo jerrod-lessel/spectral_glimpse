@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#0f1117"/>
+  <!-- Eye outline -->
+  <path d="M6 32 Q32 9 58 32 Q32 55 6 32Z"
+        fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Orbit ring as iris -->
+  <ellipse cx="32" cy="32" rx="12" ry="12"
+           fill="none" stroke="white" stroke-width="1.8" opacity="0.65"/>
+  <!-- Satellite dot on right of orbit -->
+  <circle cx="44" cy="32" r="3" fill="white"/>
+  <!-- Solar panels on satellite -->
+  <rect x="44" y="27" width="2" height="4" rx="0.5" fill="white" opacity="0.85"/>
+  <rect x="44" y="33" width="2" height="4" rx="0.5" fill="white" opacity="0.85"/>
+  <!-- Earth center dot -->
+  <circle cx="32" cy="32" r="3.5" fill="white"/>
+</svg>

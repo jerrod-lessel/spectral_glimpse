@@ -273,25 +273,6 @@ def history():
         "history": history
     })
 
-@app.route("/debug")
-def debug():
-    """Single COG read test."""
-    try:
-        manifest = get_manifest()
-        if not manifest:
-            return jsonify({"error": "no manifest"}), 503
-        latest = manifest[-1]
-        r2_key = latest["indices"].get("ndvi")
-        url    = get_r2_cog_url(r2_key)
-        value  = sample_cog(url, 37.5, -119.5)
-        return jsonify({
-            "url":   url,
-            "value": value,
-            "ok":    value is not None
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 # ── ENTRYPOINT ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

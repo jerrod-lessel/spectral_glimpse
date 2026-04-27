@@ -68,17 +68,54 @@ def upload_to_r2(local_path: Path, r2_key: str):
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
+def update_manifest(final_cogs: dict, composite_date: str, date_label: str):
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+        aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+        region_name="auto"
+    )
+    bucket = os.environ["R2_BUCKET_NAME"]
+
+    try:
+        resp     = s3.get_object(Bucket=bucket, Key="manifest.json")
+        manifest = json.loads(resp["Body"].read().decode("utf-8"))
+    except Exception:
+        manifest = []
+
+    entry = {
+        "date":       composite_date,
+        "date_label": date_label,
+        "indices": {
+            name: f"cogs/{name}_california_{composite_date}_cog.tif"
+            for name in final_cogs.keys()
+        }
+    }
+
+    manifest.append(entry)
+    manifest = manifest[-92:]
+
+    s3.put_object(
+        Bucket=bucket,
+        Key="manifest.json",
+        Body=json.dumps(manifest, indent=2).encode("utf-8"),
+        ContentType="application/json"
+    )
+    print("  Manifest updated")
+
+
 def run():
+    from datetime import datetime
+
     print("=" * 55)
-    print("  Spectral Glimpse — VIIRS Pipeline")
+    print("  Spectral Glimpse -- VIIRS Pipeline")
     print("=" * 55 + "\n")
 
-    # 1. Auth
     print("Step 1: Authenticating...")
     authenticate()
     print("  Authenticated\n")
 
-    # 2. Search + download
     print("Step 2: Searching for tiles...")
     granules = search_tiles(days_back=16)
     if not granules:
@@ -88,7 +125,6 @@ def run():
     print("\nStep 3: Downloading tiles...")
     hdf_files = download_tiles(granules, DATA_DIR)
 
-    # 3. Extract bands, compute indices, write per-tile COGs
     print("\nStep 4: Processing tiles...")
     for hdf_path in hdf_files:
         print(f"\n  {hdf_path.name}")
@@ -104,16 +140,26 @@ def run():
             )
             print(f"    wrote {index_name.upper()} COG")
 
-    # 4. Mosaic + clip to California
     print("\nStep 5: Mosaicking and clipping to California...")
     ca_geom    = fetch_california_boundary()
     final_cogs = mosaic_and_clip(TILE_DIR, OUTPUT_DIR, ca_geom, INDEX_NAMES)
 
-    # 5. Upload to R2
-    print("\nStep 6: Uploading to Cloudflare R2...")
+    composite_date = datetime.utcnow().strftime("%Y%m%d")
+    date_label     = datetime.utcnow().strftime("%b %d %Y")
+
+    dated_cogs = {}
     for index_name, cog_path in final_cogs.items():
-        r2_key = f"cogs/{index_name}_california_cog.tif"
+        dated_name = OUTPUT_DIR / f"{index_name}_california_{composite_date}_cog.tif"
+        cog_path.rename(dated_name)
+        dated_cogs[index_name] = dated_name
+
+    print("\nStep 6: Uploading to Cloudflare R2...")
+    for index_name, cog_path in dated_cogs.items():
+        r2_key = f"cogs/{index_name}_california_{composite_date}_cog.tif"
         upload_to_r2(cog_path, r2_key)
+
+    print("\nStep 7: Updating manifest...")
+    update_manifest(dated_cogs, composite_date, date_label)
 
     print("\n" + "=" * 55)
     print("  Pipeline complete!")

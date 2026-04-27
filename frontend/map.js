@@ -329,7 +329,7 @@ map.on("click", async function (e) {
 
   // Show loading state in each sparkline canvas
    const loadMessages = [
-     "pulling 2 years of satellite data...",
+     "pulling 2 years of satellite data",
      "free data takes a moment 🛰️",
      "good things come to those who wait",
      "querying the archive...",

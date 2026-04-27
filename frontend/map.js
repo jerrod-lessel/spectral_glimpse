@@ -328,16 +328,11 @@ map.on("click", async function (e) {
   showCards();
 
   // Show loading state in each sparkline canvas
-  Object.keys(INDEX_CONFIG).forEach(key => {
-    const canvas = document.getElementById(`spark-${key}`);
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.font = "9px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("loading history...", canvas.width / 2, canvas.height / 2);
-  });
+   Object.keys(INDEX_CONFIG).forEach(key => {
+     const sparkSide = document.querySelector(`#spark-${key}`)?.parentElement;
+     if (!sparkSide) return;
+     sparkSide.innerHTML = '<div class="spark-skeleton"></div>';
+   });
 
   // Load history in background
   const history = await fetchHistory(lat, lng);

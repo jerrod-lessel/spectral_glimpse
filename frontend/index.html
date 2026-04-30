@@ -9,45 +9,68 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  
+
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Esri Leaflet (for California mask) -->
+  <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
+
   <!-- Chart.js for sparklines -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-  <!-- Our styles -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
 <div id="app">
 
   <!-- ── MAP ── -->
   <div id="map">
-
-    <!-- Branding overlay -->
-    <div id="map-label">
-      <div class="title">Spectral Glimpse</div>
-      <div class="tagline">Because sometimes you don't need the whole spectrum, just a peek.</div>
-    </div>
-
     <!-- Click instruction -->
     <div id="click-hint">Click anywhere in California to sample indices</div>
-
   </div>
 
-  <!-- ── SIDEBAR ── -->
-  <div id="sidebar">
+  <!-- ── FLOATING TITLE CARD (bottom-left, overlays the map) ── -->
+  <div id="title-card">
+    <div id="title-card-main">
+      <img id="title-logo" src="favicon.svg" alt="Spectral Glimpse logo"
+           onerror="this.src='favicon.ico'" />
+      <div id="title-text">
+        <div id="title-name">Spectral Glimpse</div>
+        <div id="title-tagline">Because sometimes you don't need the whole spectrum, just a peek.</div>
+      </div>
+      <button id="about-toggle" title="About this tool" aria-label="Toggle about panel">?</button>
+    </div>
 
+    <!-- About panel — hidden by default -->
+    <div id="about-panel" class="hidden">
+      <p>
+        Spectral Glimpse delivers on-demand satellite-derived spectral index values for any
+        point in California. Click anywhere on the map to sample six vegetation, moisture,
+        fire, and snow indices computed from NASA VIIRS 8-day composite imagery.
+      </p>
+      <p>
+        Each index comes with a current value, a plain-language interpretation, and two years
+        of historical trend data so you can see how conditions have changed over time.
+      </p>
+      <p>
+        Data is sourced from NASA's VIIRS VNP09H1 product at 500m resolution. Built and
+        maintained by Jerrod Lessel, a geospatial analyst at Caltrans on California's
+        Central Coast.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── SIDEBAR (slides from the right) ── -->
+  <div id="sidebar">
     <div id="sidebar-header">
-      <div id="sidebar-coords">— ° N · — ° W</div>
+      <div id="sidebar-coords">---.---- ° N  &middot;  ---.---- ° W</div>
       <div id="sidebar-location">Sampling...</div>
       <div id="sidebar-date"></div>
     </div>
 
-    <!-- Loading spinner shown while API call is in flight -->
+    <!-- Loading spinner -->
     <div id="sidebar-loading">
       <div class="spinner"></div>
       <span>Sampling indices...</span>
@@ -58,13 +81,11 @@
 
     <div id="sidebar-footer">
       <span>Spectral Glimpse</span>
-      <a href="https://www.lesselgeospatial.com" target="_blank">lesselgeospatial.com</a>
+      <a href="https://www.lesselgeospatial.com" target="_blank" rel="noopener">lesselgeospatial.com</a>
     </div>
-
   </div>
 
 </div>
-
 <script src="map.js"></script>
 </body>
 </html>

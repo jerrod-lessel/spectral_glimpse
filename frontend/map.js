@@ -1,26 +1,31 @@
 /* ============================================================
    Spectral Glimpse — map.js
-   Leaflet map + sidebar point sampling logic
-   ============================================================ */
+   VERSION: 2026-04-29.a
+
+   Changes from original:
+   - Added California focus mask (via Esri Leaflet, same as GM)
+   - Added 4-basemap selector (OSM, Esri Satellite, Carto Light, Carto Dark)
+   - Added GM-style custom layers button (hamburger icon)
+   - Zoom control moved to topleft
+   - About toggle wired up
+   - Sidebar slides from right and closes with X button
+   - All core spectral index logic unchanged
+============================================================ */
 
 // ── CONFIG ────────────────────────────────────────────────────
-// Swap this for your deployed Cloud Run API URL when live
 const API_BASE = "https://spectral-glimpse-api-1087489116508.us-west1.run.app";
 
-// Fallback for local testing — points at localhost
 const API_URL = window.location.hostname === "localhost"
   ? "http://localhost:8080"
   : API_BASE;
 
-// Index display config — colors and chart scales match
-// the vis params in pipeline/indices.py
 const INDEX_CONFIG = {
   ndvi: {
     label: "NDVI",
     color: "#4ade80",
     min: 0.0, max: 0.9,
     what: "Compares how much red light plants absorb versus how much near-infrared they reflect. Healthy vegetation absorbs red for photosynthesis and strongly reflects NIR, the bigger that gap, the greener and healthier the canopy.",
-    equation: "(NIR − Red) / (NIR + Red)",
+    equation: "(NIR - Red) / (NIR + Red)",
     trend_context: "A declining NDVI trend can signal drought stress, seasonal senescence, post-fire recovery lag, or land cover change. A rising trend often reflects rainfall response, crop growth, or vegetation recovery after disturbance."
   },
   evi2: {
@@ -28,7 +33,7 @@ const INDEX_CONFIG = {
     color: "#86efac",
     min: -0.1, max: 0.7,
     what: "A refinement of NDVI that reduces atmospheric interference and soil background effects. More reliable than NDVI in dense canopy or hazy conditions, both common in California's Central Valley and coastal fog zones.",
-    equation: "2.5 × (NIR − Red) / (NIR + 2.4 × Red + 1)",
+    equation: "2.5 x (NIR - Red) / (NIR + 2.4 x Red + 1)",
     trend_context: "EVI2 trends often track seasonal agricultural cycles in the Central Valley. A divergence between EVI2 and NDVI can suggest changing atmospheric conditions or shifts in canopy density."
   },
   nbr: {
@@ -36,7 +41,7 @@ const INDEX_CONFIG = {
     color: "#fbbf24",
     min: -1.0, max: 1.0,
     what: "Sensitive to the charred carbon and exposed soil that fire leaves behind. Unburned vegetation has high NIR and low SWIR reflectance. Fire flips that relationship, dropping NIR and raising SWIR dramatically.",
-    equation: "(NIR − SWIR) / (NIR + SWIR)",
+    equation: "(NIR - SWIR) / (NIR + SWIR)",
     trend_context: "A sudden NBR drop followed by gradual recovery is the classic post-fire signal. Note: this is single-date NBR while true burn severity mapping requires pre/post delta-NBR (dNBR). Use this as a risk indicator, not a definitive burn map."
   },
   ndmi: {
@@ -44,28 +49,27 @@ const INDEX_CONFIG = {
     color: "#38bdf8",
     min: -0.3, max: 0.5,
     what: "Tracks liquid water held in vegetation canopy. SWIR wavelengths are absorbed by water, so when vegetation dries out, SWIR reflectance rises and NDMI drops. A reliable early indicator of drought stress and elevated fire weather risk.",
-    equation: "(NIR − SWIR) / (NIR + SWIR)",
-    trend_context: "NDMI typically drops through California's dry season (June–October) and recovers after winter rains. A trend that fails to recover after the wet season can signal multi-year drought stress accumulating in the landscape."
+    equation: "(NIR - SWIR) / (NIR + SWIR)",
+    trend_context: "NDMI typically drops through California's dry season (June-October) and recovers after winter rains. A trend that fails to recover after the wet season can signal multi-year drought stress accumulating in the landscape."
   },
   ndsi: {
     label: "NDSI",
     color: "#cbd5e1",
     min: -0.5, max: 0.8,
     what: "Snow and ice strongly absorb SWIR wavelengths while reflecting visible light, making the contrast between visible and SWIR a reliable snow detector. Values above 0.4 generally indicate snow-covered ground.",
-    equation: "(Red − SWIR) / (Red + SWIR)",
-    trend_context: "Sierra Nevada snowpack is California's largest freshwater reservoir. Declining NDSI in winter months or earlier spring melt timing are important climate signals. Note: the standard NDSI uses a Green band rather than Red, since snow is especially bright in green wavelengths. VIIRS VNP09H1 lacks a green I-band so Red is used as a substitute, the index remains a useful snow indicator but may slightly underperform the classic formulation in marginal snow conditions.",
+    equation: "(Red - SWIR) / (Red + SWIR)",
+    trend_context: "Sierra Nevada snowpack is California's largest freshwater reservoir. Declining NDSI in winter months or earlier spring melt timing are important climate signals. Note: the standard NDSI uses a Green band rather than Red; VIIRS VNP09H1 lacks a green I-band so Red is used as a substitute.",
   },
   bsi: {
     label: "BSI",
     color: "#fb923c",
     min: -0.5, max: 0.3,
     what: "Combines SWIR, Red, and NIR to isolate bare mineral soil from vegetated surfaces. Bare soil has high SWIR and Red reflectance but low NIR, the inverse of healthy vegetation. Rises sharply after fire removes ground cover.",
-    equation: "((SWIR + Red) − NIR) / ((SWIR + Red) + NIR)",
+    equation: "((SWIR + Red) - NIR) / ((SWIR + Red) + NIR)",
     trend_context: "A rising BSI trend after a stable period can indicate post-fire soil exposure, drought-driven vegetation loss, or agricultural harvest cycles. Elevated BSI increases erosion and runoff risk, particularly on steep terrain."
   },
 };
 
-// ── MOCK MODE — set to false when API is deployed ──────────
 const MOCK_MODE = false;
 
 const MOCK_DATA = {
@@ -87,26 +91,117 @@ const MOCK_DATA = {
     bsi:  Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.08 + (Math.sin(i/9)*0.08) + (Math.random()*0.04-0.02) })),
   }
 };
+
+// ── CA BOUNDARY SERVICE (same as GM) ─────────────────────────
+const CA_BOUNDARY_URL =
+  "https://services.arcgis.com/ue9rwulIoeLEI9bj/arcgis/rest/services/US_StateBoundaries/FeatureServer/0";
+
 // ── MAP INIT ──────────────────────────────────────────────────
 const map = L.map("map", {
   center: [37.5, -119.5],
   zoom: 6,
-  zoomControl: true,
+  zoomControl: false,
   attributionControl: true,
 });
 
-// Dark basemap via Stadia Maps (free, no API key needed)
-L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 18,
-  }
-).addTo(map);
+// ── BASEMAPS ──────────────────────────────────────────────────
+const basemaps = {
+  "OpenStreetMap": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors",
+    maxZoom: 19,
+  }),
+  "Esri Satellite": L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    { attribution: "Tiles © Esri", maxZoom: 19 }
+  ),
+  "Carto Light": L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: "© Carto",
+    maxZoom: 19,
+  }),
+  "Carto Dark": L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "© Carto",
+    maxZoom: 19,
+  }),
+};
 
+// Default basemap
+basemaps["Carto Light"].addTo(map);
+
+// ── CALIFORNIA FOCUS MASK (same logic as GM) ──────────────────
+function addCaliforniaFocusMask() {
+  try {
+    const maskPane = map.createPane("caMaskPane");
+    maskPane.style.zIndex = 260;
+    maskPane.style.pointerEvents = "none";
+
+    const worldRing = [[-90,-180],[-90,180],[90,180],[90,-180],[-90,-180]];
+    const statesLayer = L.esri.featureLayer({ url: CA_BOUNDARY_URL });
+
+    statesLayer.query().where("NAME = 'California'").returnGeometry(true).run((err, fc) => {
+      if (err || !fc?.features?.length) return;
+      const caGeom = fc.features[0].geometry;
+      if (!caGeom) return;
+
+      const toLatLngRing = (ring) => ring.map(([lng, lat]) => [lat, lng]);
+      const holes = [];
+
+      if (caGeom.type === "Polygon") {
+        caGeom.coordinates.forEach((ring) => holes.push(toLatLngRing(ring)));
+      } else if (caGeom.type === "MultiPolygon") {
+        caGeom.coordinates.forEach((poly) => poly.forEach((ring) => holes.push(toLatLngRing(ring))));
+      }
+
+      L.polygon([worldRing, ...holes], {
+        pane: "caMaskPane",
+        stroke: false,
+        fill: true,
+        fillColor: "#000",
+        fillOpacity: 0.45,
+        interactive: false,
+      }).addTo(map);
+    });
+  } catch (e) {
+    console.warn("CA mask: failed to initialize:", e);
+  }
+}
+
+addCaliforniaFocusMask();
+
+// ── ZOOM CONTROL (top-left, like GM) ─────────────────────────
+L.control.zoom({ position: "topleft" }).addTo(map);
+
+// ── LAYER CONTROL (GM-style hamburger button) ─────────────────
+// We use a custom toggle button + the built-in L.control.layers panel
+const CustomLayersControl = L.Control.extend({
+  options: { position: "topright" },
+  onAdd: function () {
+    const c = L.DomUtil.create("div", "leaflet-bar custom-layers-button");
+    c.innerHTML = '<span class="layers-icon">&#x2630;</span>';
+    c.title = "Toggle basemap selector";
+    c.onclick = function () {
+      // Toggle the built-in layers control expand
+      const toggle = document.querySelector(".leaflet-control-layers-toggle");
+      if (toggle) toggle.click();
+    };
+    L.DomEvent.disableClickPropagation(c);
+    return c;
+  },
+});
+map.addControl(new CustomLayersControl());
+
+// Add the actual layer control (collapsed, no overlays for SG)
+L.control.layers(basemaps, {}, { position: "topright", collapsed: true }).addTo(map);
+
+// Scale bar
+L.control.scale({ imperial: true, position: "bottomright" }).addTo(map);
+
+// ── ABOUT TOGGLE ──────────────────────────────────────────────
+document.getElementById("about-toggle")?.addEventListener("click", function () {
+  document.getElementById("about-panel")?.classList.toggle("hidden");
+  setTimeout(() => map.invalidateSize(), 50);
+});
 
 // ── CLICK MARKER ──────────────────────────────────────────────
-// Custom pulsing dot marker for the clicked point
 const markerIcon = L.divIcon({
   className: "",
   html: '<div class="click-marker-dot"></div>',
@@ -121,7 +216,6 @@ function placeMarker(latlng) {
   activeMarker = L.marker(latlng, { icon: markerIcon }).addTo(map);
 }
 
-
 // ── SIDEBAR HELPERS ───────────────────────────────────────────
 const sidebar        = document.getElementById("sidebar");
 const sidebarLoading = document.getElementById("sidebar-loading");
@@ -132,14 +226,17 @@ const dateEl         = document.getElementById("sidebar-date");
 const clickHint      = document.getElementById("click-hint");
 
 function showSidebar()  { sidebar.classList.add("open"); }
-function showLoading()  {
+
+function showLoading() {
   sidebarLoading.style.display = "flex";
   cardsScroll.style.display    = "none";
 }
-function showCards()    {
+
+function showCards() {
   sidebarLoading.style.display = "none";
   cardsScroll.style.display    = "flex";
 }
+
 function showError(msg) {
   sidebarLoading.style.display = "none";
   cardsScroll.style.display    = "flex";
@@ -149,10 +246,9 @@ function showError(msg) {
 function formatCoords(lat, lon) {
   const latDir = lat >= 0 ? "N" : "S";
   const lonDir = lon >= 0 ? "E" : "W";
-  return `${Math.abs(lat).toFixed(4)}° ${latDir} · ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
+  return `${Math.abs(lat).toFixed(4)}° ${latDir}  ·  ${Math.abs(lon).toFixed(4)}° ${lonDir}`;
 }
 
-// Reverse geocode using Nominatim (free, no key needed)
 async function reverseGeocode(lat, lon) {
   try {
     const resp = await fetch(
@@ -161,12 +257,24 @@ async function reverseGeocode(lat, lon) {
     );
     const data = await resp.json();
     const addr = data.address || {};
-    return addr.county || addr.state_district || addr.state || "California";
+    return addr.city || addr.town || addr.village || addr.county || addr.state || "California";
   } catch {
     return "California";
   }
 }
 
+// Add close button to sidebar header dynamically
+(function addSidebarCloseButton() {
+  const header = document.getElementById("sidebar-header");
+  if (!header) return;
+  const btn = document.createElement("button");
+  btn.id = "sidebar-close";
+  btn.setAttribute("aria-label", "Close panel");
+  btn.textContent = "\u2715";
+  btn.addEventListener("click", () => sidebar.classList.remove("open"));
+  header.style.position = "relative";
+  header.appendChild(btn);
+})();
 
 // ── GAUGE SVG ─────────────────────────────────────────────────
 function makeGauge(value, min, max, color, size = 72) {
@@ -219,16 +327,13 @@ function makeGauge(value, min, max, color, size = 72) {
     </svg>`;
 }
 
-
 // ── SPARKLINE (Chart.js) ──────────────────────────────────────
-// Keep track of chart instances so we can destroy before re-render
 const chartInstances = {};
 
 function renderSparkline(canvasId, labels, values, color, min, max) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
 
-  // Destroy previous instance if it exists
   if (chartInstances[canvasId]) {
     chartInstances[canvasId].destroy();
     delete chartInstances[canvasId];
@@ -257,10 +362,10 @@ function renderSparkline(canvasId, labels, values, color, min, max) {
         legend: { display: false },
         tooltip: {
           enabled: true,
-          backgroundColor: "rgba(15,17,23,0.9)",
+          backgroundColor: "rgba(15,30,43,0.9)",
           borderColor: "rgba(255,255,255,0.1)",
           borderWidth: 0.5,
-          titleColor: "#94a3b8",
+          titleColor: "#7a9ab0",
           bodyColor: color,
           titleFont: { size: 9 },
           bodyFont: { size: 11, family: "monospace" },
@@ -271,10 +376,7 @@ function renderSparkline(canvasId, labels, values, color, min, max) {
         },
       },
       scales: {
-        x: {
-          display: false,
-          ticks: { display: false },
-        },
+        x: { display: false },
         y: {
           display: false,
           min: min - (max - min) * 0.05,
@@ -323,56 +425,44 @@ map.on("click", async function (e) {
     dateEl.textContent = `VIIRS 8-day · ${apiData.composite_date}`;
   }
 
-  // Show cards immediately with loading sparklines
   buildCards(apiData);
   showCards();
 
-  // Show loading state in each sparkline canvas
-   const loadMessages = [
-     "pulling 2 years of satellite data",
-     "free data takes a moment 🛰️",
-     "good things come to those who wait",
-     "querying the archive...",
-     "worth the wait, we promise",
-     "just remember, this is still free",
-     "man that's a lot of data!",
-   ];
-   const randomMsg = loadMessages[Math.floor(Math.random() * loadMessages.length)];
-   
-   Object.keys(INDEX_CONFIG).forEach((key, i) => {
-     const card = document.querySelector(`[data-index-key="${key}"] .spark-side`);
-     if (!card) return;
-     if (i === 0) {
-       // First card gets the fun message
-       card.innerHTML = `
-         <div class="spark-skeleton" style="position:relative;">
-           <div style="
-             position:absolute;
-             inset:0;
-             display:flex;
-             align-items:center;
-             justify-content:center;
-             font-size:9px;
-             color:rgba(255,255,255,0.3);
-             font-family:monospace;
-             white-space:nowrap;
-             overflow:hidden;
-             padding:0 6px;
-           ">${randomMsg}</div>
-         </div>`;
-     } else {
-       card.innerHTML = '<div class="spark-skeleton"></div>';
-     }
-   });
+  const loadMessages = [
+    "pulling 2 years of satellite data",
+    "free data takes a moment 🛰️",
+    "good things come to those who wait",
+    "querying the archive...",
+    "worth the wait, we promise",
+    "just remember, this is still free",
+    "man that's a lot of data!",
+  ];
+  const randomMsg = loadMessages[Math.floor(Math.random() * loadMessages.length)];
 
-  // Load history in background
+  Object.keys(INDEX_CONFIG).forEach((key, i) => {
+    const card = document.querySelector(`[data-index-key="${key}"] .spark-side`);
+    if (!card) return;
+    if (i === 0) {
+      card.innerHTML = `
+        <div class="spark-skeleton" style="position:relative;">
+          <div style="
+            position:absolute;inset:0;display:flex;align-items:center;
+            justify-content:center;font-size:9px;color:rgba(255,255,255,0.3);
+            font-family:monospace;white-space:nowrap;overflow:hidden;padding:0 6px;
+          ">${randomMsg}</div>
+        </div>`;
+    } else {
+      card.innerHTML = '<div class="spark-skeleton"></div>';
+    }
+  });
+
   const history = await fetchHistory(lat, lng);
 
-if (history) {
+  if (history) {
     Object.entries(history).forEach(([key, entries]) => {
       if (!entries.length) return;
       const cfg      = INDEX_CONFIG[key] || {};
-      const color    = cfg.color || "#94a3b8";
+      const color    = cfg.color || "#7a9ab0";
       const min      = cfg.min ?? -1;
       const max      = cfg.max ?? 1;
       const canvasId = `spark-${key}`;
@@ -390,31 +480,24 @@ if (history) {
       );
     });
 
-    if (lastApiData) {
-      lastApiData.history = history;
-    }
+    if (lastApiData) lastApiData.history = history;
   }
 });
 
-// ── API CALL ──────────────────────────────────────────────────
+// ── API CALLS ─────────────────────────────────────────────────
 async function fetchSample(lat, lon) {
   if (MOCK_MODE) {
     await new Promise(r => setTimeout(r, 600));
     return MOCK_DATA;
   }
   try {
-    // Load current values immediately — this is fast (~2 seconds)
     const sampleResp = await fetch(
       `${API_URL}/sample?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`
     );
     if (!sampleResp.ok) return null;
     const sampleData = await sampleResp.json();
-
-    // Return current data right away so sidebar opens fast
-    // History will load in the background
     sampleData.history = null;
     return sampleData;
-
   } catch (err) {
     console.error("API error:", err);
     return null;
@@ -436,8 +519,6 @@ async function fetchHistory(lat, lon) {
 }
 
 // ── MODAL ─────────────────────────────────────────────────────
-
-// Inject modal HTML into the page
 document.body.insertAdjacentHTML("beforeend", `
   <div id="modal-overlay">
     <div id="modal">
@@ -464,7 +545,7 @@ document.body.insertAdjacentHTML("beforeend", `
         </div>
       </div>
       <div id="modal-chart-wrap">
-        <div id="modal-chart-title">2-YEAR HISTORY — 8-DAY COMPOSITES</div>
+        <div id="modal-chart-title">2-YEAR HISTORY - 8-DAY COMPOSITES</div>
         <canvas id="modal-chart" height="140"></canvas>
       </div>
       <div id="modal-trend-wrap" style="margin-bottom:14px;"></div>
@@ -476,7 +557,6 @@ document.body.insertAdjacentHTML("beforeend", `
   </div>
 `);
 
-// Store last API data so modal can reference it
 let lastApiData = null;
 
 function buildCards(data) {
@@ -484,11 +564,11 @@ function buildCards(data) {
   cardsScroll.innerHTML = "";
 
   const INDEX_ORDER = ["ndvi", "evi2", "nbr", "ndmi", "ndsi", "bsi"];
-   INDEX_ORDER.forEach(key => {
-     const idx = data.indices[key];
-     if (!idx) return;
+  INDEX_ORDER.forEach(key => {
+    const idx = data.indices[key];
+    if (!idx) return;
     const cfg      = INDEX_CONFIG[key] || {};
-    const color    = cfg.color || "#94a3b8";
+    const color    = cfg.color || "#7a9ab0";
     const min      = cfg.min ?? -1;
     const max      = cfg.max ?? 1;
     const canvasId = `spark-${key}`;
@@ -503,8 +583,7 @@ function buildCards(data) {
         <div class="gauge-side">
           ${idx.value !== null
             ? makeGauge(idx.value, min, max, color)
-            : `<div style="width:72px;height:52px;display:flex;align-items:center;
-                justify-content:center;font-size:10px;color:#334155;">no data</div>`
+            : `<div style="width:72px;height:52px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--panel-text-label);">no data</div>`
           }
         </div>
         <div class="spark-side">
@@ -531,26 +610,21 @@ function buildCards(data) {
   });
 }
 
-
 // ── MODAL OPEN ────────────────────────────────────────────────
 function openModal(key, data) {
   const idx     = data.indices[key];
   const cfg     = INDEX_CONFIG[key] || {};
-  const color   = cfg.color || "#94a3b8";
+  const color   = cfg.color || "#7a9ab0";
   const min     = cfg.min ?? -1;
   const max     = cfg.max ?? 1;
   const history = (data.history && data.history[key]) || [];
   const values  = history.map(h => h.value);
   const labels  = history.map(h => h.date);
 
-  // Stats
-  const avg     = values.length
-    ? values.reduce((a, b) => a + b, 0) / values.length
-    : null;
-  const hiVal   = values.length ? Math.max(...values) : null;
-  const loVal   = values.length ? Math.min(...values) : null;
+  const avg   = values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+  const hiVal = values.length ? Math.max(...values) : null;
+  const loVal = values.length ? Math.min(...values) : null;
 
-  // Trend — compare first third vs last third of history
   let trendClass = "trend-flat";
   let trendLabel = "Stable trend";
   let trendArrow = "→";
@@ -560,91 +634,54 @@ function openModal(key, data) {
     const recentAvg = values.slice(-third).reduce((a,b) => a+b,0) / third;
     const delta     = recentAvg - earlyAvg;
     const threshold = (max - min) * 0.04;
-    if (delta > threshold) {
-      trendClass = "trend-up";
-      trendLabel = "Increasing over 2 years";
-      trendArrow = "↑";
-    } else if (delta < -threshold) {
-      trendClass = "trend-down";
-      trendLabel = "Decreasing over 2 years";
-      trendArrow = "↓";
-    }
+    if (delta > threshold)      { trendClass = "trend-up";   trendLabel = "Increasing over 2 years"; trendArrow = "↑"; }
+    else if (delta < -threshold){ trendClass = "trend-down"; trendLabel = "Decreasing over 2 years"; trendArrow = "↓"; }
   }
 
-  // Populate modal
-  document.getElementById("modal-index-name").textContent =
-    key.toUpperCase();
+  document.getElementById("modal-index-name").textContent = key.toUpperCase();
+
   const FULL_NAMES = {
-     ndvi: "Normalized Difference Vegetation Index",
-     evi2: "Enhanced Vegetation Index 2",
-     nbr:  "Normalized Burn Ratio",
-     ndmi: "Normalized Difference Moisture Index",
-     ndsi: "Normalized Difference Snow Index",
-     bsi:  "Bare Soil Index",
-   };
-   document.getElementById("modal-index-label").textContent =
-       FULL_NAMES[key] || idx.label || key.toUpperCase();
+    ndvi: "Normalized Difference Vegetation Index",
+    evi2: "Enhanced Vegetation Index 2",
+    nbr:  "Normalized Burn Ratio",
+    ndmi: "Normalized Difference Moisture Index",
+    ndsi: "Normalized Difference Snow Index",
+    bsi:  "Bare Soil Index",
+  };
+  document.getElementById("modal-index-label").textContent = FULL_NAMES[key] || idx.label || key.toUpperCase();
+
   document.getElementById("modal-description").innerHTML = `
-     <div style="margin-bottom:10px;">${cfg.what || idx.description || ""}</div>
-     <div style="
-       background:#1a1f2e;
-       border:0.5px solid rgba(255,255,255,0.07);
-       border-radius:8px;
-       padding:8px 12px;
-       margin-bottom:10px;
-       font-family:monospace;
-       font-size:11px;
-       color:#94a3b8;
-     ">
-       <span style="color:#475569;font-size:10px;letter-spacing:0.05em;">EQUATION &nbsp;</span>
-       ${cfg.equation || ""}
-     </div>
-     ${cfg.trend_context ? `
-     <div style="
-       font-size:11px;
-       color:#64748b;
-       line-height:1.6;
-       border-top:0.5px solid rgba(255,255,255,0.05);
-       padding-top:10px;
-     ">
-       <span style="font-size:10px;letter-spacing:0.05em;color:#334155;">TREND CONTEXT &nbsp;</span><br/>
-       ${cfg.trend_context}
-     </div>` : ""}
-   `;
+    <div style="margin-bottom:10px;">${cfg.what || idx.description || ""}</div>
+    <div style="
+      background:rgba(255,255,255,0.04);
+      border:0.5px solid var(--panel-border);
+      border-radius:8px;padding:8px 12px;margin-bottom:10px;
+      font-family:monospace;font-size:11px;color:var(--panel-text-muted);
+    ">
+      <span style="color:var(--panel-text-label);font-size:10px;letter-spacing:0.05em;">EQUATION &nbsp;</span>
+      ${cfg.equation || ""}
+    </div>
+    ${cfg.trend_context ? `
+    <div style="font-size:11px;color:var(--panel-text-label);line-height:1.6;border-top:0.5px solid var(--panel-border);padding-top:10px;">
+      <span style="font-size:10px;letter-spacing:0.05em;color:var(--panel-text-label);">TREND CONTEXT &nbsp;</span><br/>
+      ${cfg.trend_context}
+    </div>` : ""}
+  `;
 
-  // Gauges
   document.getElementById("modal-gauge-current").innerHTML =
-    idx.value !== null
-      ? makeGauge(idx.value, min, max, color, 90)
-      : "<div style='color:#334155;font-size:11px;'>no data</div>";
-
+    idx.value !== null ? makeGauge(idx.value, min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>no data</div>";
   document.getElementById("modal-gauge-avg").innerHTML =
-    avg !== null
-      ? makeGauge(parseFloat(avg.toFixed(3)), min, max, color, 90)
-      : "<div style='color:#334155;font-size:11px;'>—</div>";
-
+    avg !== null ? makeGauge(parseFloat(avg.toFixed(3)), min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
   document.getElementById("modal-gauge-min").innerHTML =
-    loVal !== null
-      ? makeGauge(parseFloat(loVal.toFixed(3)), min, max, color, 90)
-      : "<div style='color:#334155;font-size:11px;'>—</div>";
-
+    loVal !== null ? makeGauge(parseFloat(loVal.toFixed(3)), min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
   document.getElementById("modal-gauge-max").innerHTML =
-    hiVal !== null
-      ? makeGauge(parseFloat(hiVal.toFixed(3)), min, max, color, 90)
-      : "<div style='color:#334155;font-size:11px;'>—</div>";
+    hiVal !== null ? makeGauge(parseFloat(hiVal.toFixed(3)), min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
 
-  // Trend badge
   document.getElementById("modal-trend-wrap").innerHTML =
-    `<div class="modal-trend-badge ${trendClass}">
-       <span>${trendArrow}</span>
-       <span>${trendLabel}</span>
-     </div>`;
+    `<div class="modal-trend-badge ${trendClass}"><span>${trendArrow}</span><span>${trendLabel}</span></div>`;
 
-  // Interpretation
-  document.getElementById("modal-interp-text").textContent =
-    idx.interpretation || "";
+  document.getElementById("modal-interp-text").textContent = idx.interpretation || "";
 
-  // Large chart
   const modalCanvas = document.getElementById("modal-chart");
   modalCanvas.width = modalCanvas.parentElement.clientWidth - 28;
 
@@ -677,10 +714,10 @@ function openModal(key, data) {
           legend: { display: false },
           tooltip: {
             enabled: true,
-            backgroundColor: "rgba(15,17,23,0.95)",
+            backgroundColor: "rgba(15,30,43,0.95)",
             borderColor: "rgba(255,255,255,0.1)",
             borderWidth: 0.5,
-            titleColor: "#94a3b8",
+            titleColor: "#7a9ab0",
             bodyColor: color,
             titleFont: { size: 10 },
             bodyFont: { size: 12, family: "monospace" },
@@ -693,39 +730,24 @@ function openModal(key, data) {
         scales: {
           x: {
             display: true,
-            ticks: {
-              color: "#334155",
-              font: { size: 9 },
-              maxTicksLimit: 8,
-              maxRotation: 0,
-            },
-            grid: {
-              color: "rgba(255,255,255,0.03)",
-            },
+            ticks: { color: "#4d7a96", font: { size: 9 }, maxTicksLimit: 8, maxRotation: 0 },
+            grid:  { color: "rgba(255,255,255,0.03)" },
           },
           y: {
             display: true,
             min: min - (max - min) * 0.05,
             max: max + (max - min) * 0.05,
-            ticks: {
-              color: "#334155",
-              font: { size: 9 },
-              maxTicksLimit: 5,
-            },
-            grid: {
-              color: "rgba(255,255,255,0.03)",
-            },
+            ticks: { color: "#4d7a96", font: { size: 9 }, maxTicksLimit: 5 },
+            grid:  { color: "rgba(255,255,255,0.03)" },
           },
         },
       },
     });
   }
 
-  // Open overlay
   document.getElementById("modal-overlay").classList.add("open");
   document.body.style.overflow = "hidden";
 }
-
 
 // ── MODAL CLOSE ───────────────────────────────────────────────
 function closeModal() {
@@ -734,20 +756,9 @@ function closeModal() {
 }
 
 document.getElementById("modal-close").addEventListener("click", closeModal);
-
 document.getElementById("modal-overlay").addEventListener("click", function(e) {
   if (e.target === this) closeModal();
 });
-
 document.addEventListener("keydown", function(e) {
   if (e.key === "Escape") closeModal();
 });
-
-
-// ── TITLE POSITION FIX ────────────────────────────────────────
-// Push Leaflet zoom controls down so they don't overlap the title
-const zoomControl = document.querySelector(".leaflet-control-zoom");
-if (zoomControl) {
-  zoomControl.style.marginTop = "88px";
-  zoomControl.style.marginLeft = "15px";
-}

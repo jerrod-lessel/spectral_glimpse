@@ -1,20 +1,70 @@
 /* ============================================================
    Spectral Glimpse — styles
-   Dark techy theme
-   ============================================================ */
+   VERSION: 2026-04-29.a
 
-/* ---- Reset + base ---- */
+   Changes from original:
+   - Sidebar adopts GM dark blue color scheme
+   - Sidebar slides from right (was already there, refined)
+   - Floating title card with favicon and about section
+   - Leaflet controls match GM dark style
+   - Attribution and subtitle text lightened for readability
+   - 4-basemap layer control
+   - California focus mask support
+============================================================ */
+
+/* ============================================================
+   CSS VARIABLES
+============================================================ */
+
+:root {
+  /* Shared with GM dark theme */
+  --panel-bg:           #1a2b38;
+  --panel-bg-card:      #213345;
+  --panel-border:       rgba(255,255,255,0.08);
+  --panel-text:         #e8eef2;
+  --panel-text-muted:   #7a9ab0;
+  --panel-text-label:   #4d7a96;
+  --panel-accent:       #3ecfcf;
+  --panel-accent-warm:  #f59e3a;
+  --panel-header-bg:    #0f1e2b;
+  --panel-footer-bg:    #0f1e2b;
+  --panel-radius:       10px;
+
+  /* Title card */
+  --card-bg:     rgba(13, 25, 38, 0.92);
+  --card-border: rgba(62, 207, 207, 0.18);
+
+  /* Leaflet control dark */
+  --ctrl-bg:     rgba(13, 25, 38, 0.92);
+  --ctrl-border: rgba(255,255,255,0.1);
+  --ctrl-text:   #94b4c8;
+  --ctrl-hover:  rgba(62,207,207,0.15);
+
+  --sidebar-width: 320px;
+}
+
+/* ============================================================
+   RESET + BASE
+============================================================ */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #0f1117;
-  color: #e2e8f0;
+  background: #0c1f2c;
+  color: var(--panel-text);
   overflow: hidden;
 }
 
-/* ---- App shell ---- */
+.hidden {
+  display: none !important;
+}
+
+/* ============================================================
+   APP SHELL
+============================================================ */
+
 #app {
   display: flex;
   height: 100vh;
@@ -23,55 +73,125 @@ html, body {
   overflow: hidden;
 }
 
-/* ---- Map ---- */
+/* ============================================================
+   MAP
+============================================================ */
+
 #map {
   flex: 1;
   height: 100%;
-  background: #1a1f2e;
+  background: #0c1f2c;
   cursor: crosshair;
+  position: relative;
 }
 
-/* Leaflet dark overrides */
-.leaflet-container { background: #1a1f2e; }
+/* ============================================================
+   DARK LEAFLET CONTROLS (matching GM)
+============================================================ */
+
+.leaflet-container { background: #0c1f2c; }
+
 .leaflet-control-zoom a {
-  background: #13161f !important;
-  color: #94a3b8 !important;
-  border-color: rgba(255,255,255,0.08) !important;
+  background: var(--ctrl-bg) !important;
+  color: var(--ctrl-text) !important;
+  border-color: var(--ctrl-border) !important;
+  font-weight: 400 !important;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s, color 0.15s;
 }
-.leaflet-control-zoom a:hover {
-  background: #1a1f2e !important;
-  color: #e2e8f0 !important;
-}
-.leaflet-control-attribution {
-  background: rgba(15,17,23,0.7) !important;
-  color: #334155 !important;
-  font-size: 9px !important;
-}
-.leaflet-control-attribution a { color: #475569 !important; }
 
-/* ---- Map UI overlays ---- */
-#map-label {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 1000;
-  background: rgba(15,17,23,0.88);
-  border: 0.5px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  padding: 9px 13px;
-  pointer-events: none;
+.leaflet-control-zoom a:hover {
+  background: var(--ctrl-hover) !important;
+  color: var(--panel-accent) !important;
 }
-#map-label .title {
+
+/* Lightened attribution for readability on lighter basemaps */
+.leaflet-control-attribution {
+  background: rgba(13,25,38,0.80) !important;
+  color: #7a9ab0 !important;
+  font-size: 10px !important;
+  backdrop-filter: blur(6px);
+}
+
+.leaflet-control-attribution a {
+  color: #5a9ab8 !important;
+}
+
+/* Layer control dark */
+.leaflet-control-layers {
+  background: var(--ctrl-bg) !important;
+  border: 1px solid var(--ctrl-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
+  backdrop-filter: blur(8px);
+  color: var(--ctrl-text) !important;
+}
+
+.leaflet-control-layers-toggle {
+  background-color: var(--ctrl-bg) !important;
+  border-color: var(--ctrl-border) !important;
+}
+
+.leaflet-control-layers label {
+  color: var(--ctrl-text) !important;
+  font-size: 0.82rem;
+}
+
+.leaflet-control-layers-separator {
+  border-color: var(--ctrl-border) !important;
+}
+
+/* Custom legend/layers toggle button (GM style) */
+.custom-layers-button {
+  background: var(--ctrl-bg) !important;
+  border: 1px solid var(--ctrl-border) !important;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  width: 43px;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  backdrop-filter: blur(8px);
+}
+
+.custom-layers-button:hover {
+  background: var(--ctrl-hover) !important;
+}
+
+.custom-layers-button .layers-icon {
   font-size: 22px;
-  font-weight: 500;
-  color: #e2e8f0;
-  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--ctrl-text);
+  transform: translateY(-1px);
 }
-#map-label .tagline {
-  font-size: 10px;
-  color: #475569;
-  margin-top: 2px;
+
+/* Scale bar */
+.leaflet-control-scale-line {
+  background: rgba(13,25,38,0.80) !important;
+  border-color: #3a5a70 !important;
+  color: #7a9ab0 !important;
+  font-size: 10px !important;
 }
+
+/* Dark popup theme */
+.leaflet-popup-content-wrapper {
+  background: rgba(13, 25, 38, 0.95) !important;
+  color: var(--panel-text-muted) !important;
+  border: 1px solid var(--ctrl-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(13, 25, 38, 0.95) !important;
+}
+
+/* ============================================================
+   MAP UI OVERLAYS
+============================================================ */
 
 #click-hint {
   position: absolute;
@@ -79,17 +199,19 @@ html, body {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  background: rgba(15,17,23,0.85);
-  border: 0.5px solid rgba(255,255,255,0.1);
+  background: rgba(13,25,38,0.88);
+  border: 0.5px solid rgba(255,255,255,0.12);
   border-radius: 20px;
   padding: 7px 16px;
   font-size: 12px;
-  color: #475569;
+  /* Lightened from original #475569 */
+  color: #7a9ab0;
   white-space: nowrap;
   transition: opacity 0.3s;
   pointer-events: none;
 }
-#click-hint.hidden { opacity: 0; }
+
+#click-hint.hidden { opacity: 0; pointer-events: none; }
 
 /* Click marker */
 .click-marker-dot {
@@ -100,6 +222,7 @@ html, body {
   border-radius: 50%;
   position: relative;
 }
+
 .click-marker-dot::after {
   content: '';
   position: absolute;
@@ -110,52 +233,190 @@ html, body {
   border-radius: 50%;
   animation: ring 2s infinite;
 }
+
 @keyframes ring {
   0%,100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); }
   50%      { opacity: 0.1; transform: translate(-50%,-50%) scale(1.4); }
 }
 
-/* ---- Sidebar ---- */
+/* ============================================================
+   FLOATING TITLE CARD (matches GM style)
+============================================================ */
+
+#title-card {
+  position: fixed;
+  bottom: 28px;
+  left: 14px;
+  z-index: 900;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  max-width: 340px;
+  width: calc(100vw - 28px);
+  overflow: hidden;
+  /* Make sure it sits above Leaflet controls */
+  pointer-events: all;
+}
+
+#title-card-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+}
+
+#title-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+#title-text {
+  flex: 1;
+  min-width: 0;
+}
+
+#title-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e8eef2;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#title-tagline {
+  font-size: 0.68rem;
+  /* Lightened from original #475569 */
+  color: #6a8fa8;
+  margin-top: 1px;
+  line-height: 1.3;
+}
+
+#about-toggle {
+  width: 26px;
+  height: 26px;
+  background: rgba(62,207,207,0.1);
+  border: 1px solid rgba(62,207,207,0.3);
+  border-radius: 50%;
+  color: var(--panel-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+#about-toggle:hover {
+  background: rgba(62,207,207,0.22);
+}
+
+#about-panel {
+  border-top: 1px solid rgba(62,207,207,0.12);
+  padding: 10px 13px 12px;
+  font-size: 0.78rem;
+  color: #7a9ab0;
+  line-height: 1.6;
+}
+
+#about-panel p {
+  margin: 0 0 0.5rem;
+}
+
+#about-panel p:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================================
+   SIDEBAR (GM dark blue color scheme, slides from right)
+============================================================ */
+
 #sidebar {
-  width: 320px;
+  width: var(--sidebar-width);
   height: 100%;
-  background: #13161f;
-  border-left: 0.5px solid rgba(255,255,255,0.07);
+  background: var(--panel-bg);
+  border-left: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
+  /* Slides in from right — starts off-screen */
   transform: translateX(100%);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 900;
+  z-index: 800;
   flex-shrink: 0;
+  box-shadow: -6px 0 32px rgba(0,0,0,0.45);
+  /* Absolute positioning so it overlays the map */
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
 }
-#sidebar.open { transform: translateX(0); }
+
+#sidebar.open {
+  transform: translateX(0);
+}
 
 /* Sidebar header */
 #sidebar-header {
   padding: 14px 16px 12px;
-  border-bottom: 0.5px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
+  background: var(--panel-header-bg);
 }
+
 #sidebar-coords {
-  font-size: 10px;
-  color: #475569;
+  font-size: 0.72rem;
+  color: var(--panel-accent);
   font-family: "SF Mono", "Fira Code", monospace;
+  letter-spacing: 0.3px;
   margin-bottom: 3px;
 }
+
 #sidebar-location {
-  font-size: 14px;
-  font-weight: 500;
-  color: #e2e8f0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--panel-text);
+  line-height: 1.3;
 }
+
 #sidebar-date {
   display: inline-block;
   margin-top: 6px;
-  background: rgba(56,189,248,0.1);
-  border: 0.5px solid rgba(56,189,248,0.25);
+  background: rgba(62,207,207,0.1);
+  border: 0.5px solid rgba(62,207,207,0.25);
   border-radius: 4px;
   padding: 2px 8px;
   font-size: 10px;
-  color: #38bdf8;
+  color: var(--panel-accent);
+}
+
+/* Close button */
+#sidebar-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--panel-text-muted);
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+#sidebar-close:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--panel-text);
 }
 
 /* Loading state */
@@ -166,16 +427,18 @@ html, body {
   justify-content: center;
   flex-direction: column;
   gap: 10px;
-  color: #334155;
+  color: var(--panel-text-muted);
   font-size: 13px;
 }
+
 .spinner {
   width: 20px; height: 20px;
-  border: 2px solid rgba(56,189,248,0.15);
-  border-top-color: #38bdf8;
+  border: 2px solid rgba(62,207,207,0.15);
+  border-top-color: var(--panel-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Cards scroll area */
@@ -186,29 +449,34 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(62,207,207,0.25) transparent;
 }
-#cards-scroll::-webkit-scrollbar { width: 3px; }
+
+#cards-scroll::-webkit-scrollbar { width: 4px; }
 #cards-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px;
+  background: rgba(62,207,207,0.25);
+  border-radius: 3px;
 }
 
 /* Index card */
 .index-card {
-  background: #1a1f2e;
-  border: 0.5px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
+  background: var(--panel-bg-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--panel-radius);
   padding: 10px 12px;
   transition: border-color 0.2s;
 }
+
 .index-card:hover {
-  border-color: rgba(255,255,255,0.14);
+  border-color: rgba(62,207,207,0.25);
 }
 
 .card-name {
   font-size: 10px;
   font-weight: 500;
-  color: #64748b;
+  /* Lightened from original #64748b */
+  color: var(--panel-text-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -226,30 +494,37 @@ html, body {
 
 .card-interp {
   font-size: 10px;
-  color: #475569;
+  /* Lightened from #475569 */
+  color: var(--panel-text-muted);
   line-height: 1.55;
-  border-top: 0.5px solid rgba(255,255,255,0.05);
+  border-top: 1px solid var(--panel-border);
   padding-top: 6px;
 }
 
 /* Sidebar footer */
 #sidebar-footer {
   padding: 9px 16px;
-  border-top: 0.5px solid rgba(255,255,255,0.07);
+  border-top: 1px solid var(--panel-border);
   font-size: 10px;
-  color: #1e293b;
+  /* Lightened from original #1e293b */
+  color: var(--panel-text-label);
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: var(--panel-footer-bg);
 }
+
 #sidebar-footer a {
-  color: #334155;
+  color: var(--panel-text-label);
   text-decoration: none;
 }
-#sidebar-footer a:hover { color: #475569; }
 
-/* ---- Error state ---- */
+#sidebar-footer a:hover {
+  color: var(--panel-accent);
+}
+
+/* Error state */
 .error-msg {
   flex: 1;
   display: flex;
@@ -257,23 +532,15 @@ html, body {
   justify-content: center;
   padding: 20px;
   font-size: 12px;
-  color: #475569;
+  color: var(--panel-text-muted);
   text-align: center;
   line-height: 1.6;
 }
 
-/* ---- Responsive — narrow screens ---- */
-@media (max-width: 600px) {
-  #sidebar {
-    position: absolute;
-    right: 0; top: 0;
-    height: 100%;
-    width: 100%;
-    max-width: 340px;
-  }
-}
+/* ============================================================
+   MODAL OVERLAY
+============================================================ */
 
-/* ---- Modal overlay ---- */
 #modal-overlay {
   position: fixed;
   inset: 0;
@@ -286,14 +553,15 @@ html, body {
   pointer-events: none;
   transition: opacity 0.25s;
 }
+
 #modal-overlay.open {
   opacity: 1;
   pointer-events: all;
 }
 
 #modal {
-  background: #13161f;
-  border: 0.5px solid rgba(255,255,255,0.1);
+  background: var(--panel-header-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 16px;
   width: min(560px, 90vw);
   max-height: 85vh;
@@ -303,14 +571,15 @@ html, body {
   transform: scale(0.95);
   transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
 }
+
 #modal-overlay.open #modal {
   transform: scale(1);
 }
 
-#modal::-webkit-scrollbar { width: 3px; }
+#modal::-webkit-scrollbar { width: 4px; }
 #modal::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px;
+  background: rgba(62,207,207,0.25);
+  border-radius: 3px;
 }
 
 #modal-close {
@@ -318,43 +587,46 @@ html, body {
   top: 16px; right: 16px;
   width: 28px; height: 28px;
   background: rgba(255,255,255,0.06);
-  border: 0.5px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--panel-border);
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--panel-text-muted);
   font-size: 14px;
   transition: background 0.2s, color 0.2s;
   line-height: 1;
 }
+
 #modal-close:hover {
   background: rgba(255,255,255,0.12);
-  color: #e2e8f0;
+  color: var(--panel-text);
 }
 
 #modal-index-name {
   font-size: 11px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--panel-text-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 4px;
 }
+
 #modal-index-label {
   font-size: 22px;
   font-weight: 500;
-  color: #e2e8f0;
+  color: var(--panel-text);
   margin-bottom: 6px;
 }
+
 #modal-description {
   font-size: 12px;
-  color: #64748b;
+  color: var(--panel-text-muted);
   line-height: 1.6;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 0.5px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .modal-gauges {
@@ -364,27 +636,30 @@ html, body {
   gap: 32px;
   margin-bottom: 20px;
 }
+
 .modal-gauge-block {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
 }
+
 .modal-gauge-sublabel {
   font-size: 10px;
-  color: #475569;
+  color: var(--panel-text-label);
 }
 
 #modal-chart-wrap {
-  background: #1a1f2e;
-  border: 0.5px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
+  background: var(--panel-bg-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--panel-radius);
   padding: 14px;
   margin-bottom: 16px;
 }
+
 #modal-chart-title {
   font-size: 10px;
-  color: #475569;
+  color: var(--panel-text-label);
   margin-bottom: 10px;
   letter-spacing: 0.04em;
 }
@@ -399,27 +674,29 @@ html, body {
   font-weight: 500;
   margin-bottom: 14px;
 }
+
 .trend-up   { background: rgba(74,222,128,0.1);  border: 0.5px solid rgba(74,222,128,0.25);  color: #4ade80; }
 .trend-down { background: rgba(251,146,60,0.1);  border: 0.5px solid rgba(251,146,60,0.25);  color: #fb923c; }
 .trend-flat { background: rgba(148,163,184,0.1); border: 0.5px solid rgba(148,163,184,0.25); color: #94a3b8; }
 
 #modal-interpretation {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--panel-text-muted);
   line-height: 1.65;
-  background: #1a1f2e;
-  border: 0.5px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
+  background: var(--panel-bg-card);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--panel-radius);
   padding: 14px;
 }
+
 #modal-interpretation .interp-label {
   font-size: 10px;
-  color: #475569;
+  color: var(--panel-text-label);
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
-/* ---- Sparkline skeleton loader ---- */
+/* Sparkline skeleton */
 .spark-skeleton {
   width: 100%;
   height: 52px;
@@ -427,7 +704,7 @@ html, body {
   background: linear-gradient(
     90deg,
     rgba(255,255,255,0.04) 25%,
-    rgba(255,255,255,0.10) 50%,
+    rgba(62,207,207,0.06) 50%,
     rgba(255,255,255,0.04) 75%
   );
   background-size: 200% 100%;
@@ -437,4 +714,35 @@ html, body {
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 600px) {
+  :root {
+    --sidebar-width: 100vw;
+  }
+
+  #sidebar {
+    position: fixed;
+    right: 0; top: 0;
+    height: 65vh;
+    width: 100vw;
+    bottom: 0;
+    top: auto;
+    border-left: none;
+    border-top: 1px solid var(--panel-border);
+    transform: translateY(100%);
+  }
+
+  #sidebar.open {
+    transform: translateY(0);
+  }
+
+  #title-card {
+    bottom: 14px;
+    max-width: calc(100vw - 28px);
+  }
 }

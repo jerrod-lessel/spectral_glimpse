@@ -141,32 +141,47 @@ html, body {
   border-color: var(--ctrl-border) !important;
 }
 
-/* Custom legend/layers toggle button (GM style) */
-.custom-layers-button {
-  background: var(--ctrl-bg) !important;
-  border: 1px solid var(--ctrl-border) !important;
-  border-radius: 4px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
-  width: 43px;
-  height: 43px;
+/* Export + Donation */
+#sidebar-footer-actions {
+  background: var(--panel-footer-bg);
+  border-top: 1px solid var(--panel-border);
+  padding: 10px 12px;
+  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+}
+
+#export-pdf-btn {
+  width: 100%;
+  padding: 8px;
+  background: rgba(62,207,207,0.1);
+  border: 1px solid rgba(62,207,207,0.35);
+  border-radius: 7px;
+  color: var(--panel-accent);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
-  backdrop-filter: blur(8px);
+  transition: background 0.2s;
 }
 
-.custom-layers-button:hover {
-  background: var(--ctrl-hover) !important;
+#export-pdf-btn:hover { background: rgba(62,207,207,0.2); }
+#export-pdf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#donation-card { text-align: center; }
+
+.donation-text {
+  font-size: 0.75rem;
+  color: var(--panel-text-label);
 }
 
-.custom-layers-button .layers-icon {
-  font-size: 22px;
-  line-height: 1;
-  color: var(--ctrl-text);
-  transform: translateY(-1px);
+.donation-text a {
+  color: var(--panel-accent-warm);
+  text-decoration: none;
 }
+
+.donation-text a:hover { text-decoration: underline; }
 
 /* Scale bar */
 .leaflet-control-scale-line {
@@ -348,13 +363,12 @@ html, body {
   border-left: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
-  /* Slides in from right — starts off-screen */
   transform: translateX(100%);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 800;
+  /* Higher than Leaflet controls (default ~1000) so sidebar overlays them */
+  z-index: 1200;
   flex-shrink: 0;
   box-shadow: -6px 0 32px rgba(0,0,0,0.45);
-  /* Absolute positioning so it overlays the map */
   position: absolute;
   right: 0;
   top: 0;

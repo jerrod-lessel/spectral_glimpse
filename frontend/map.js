@@ -97,6 +97,12 @@ const CA_BOUNDARY_URL =
   "https://services.arcgis.com/ue9rwulIoeLEI9bj/arcgis/rest/services/US_StateBoundaries/FeatureServer/0";
 
 // ── MAP INIT ──────────────────────────────────────────────────
+// Suppress Leaflet's default marker icon — we use divIcons exclusively.
+// Without this, Leaflet tries to load marker-icon.png and leaves artifact
+// pixels when the image 404s on Cloudflare Pages.
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({ iconUrl: "", shadowUrl: "", iconRetinaUrl: "" });
+
 const map = L.map("map", {
   center: [37.5, -119.5],
   zoom: 6,
@@ -169,6 +175,30 @@ addCaliforniaFocusMask();
 
 // ── ZOOM CONTROL (top-left, like GM) ─────────────────────────
 L.control.zoom({ position: "topleft" }).addTo(map);
+
+// ── HOME BUTTON (top-left, below zoom) ───────────────────────
+(function addHomeButton() {
+  const HomeControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function () {
+      const btn = L.DomUtil.create("div", "sg-home-button leaflet-bar leaflet-control");
+      btn.innerHTML = `<a href="#" title="Reset View" style="
+        display:flex;align-items:center;justify-content:center;
+        width:30px;height:30px;font-size:20px;line-height:1;
+        color:var(--ctrl-text);text-decoration:none;
+        transform:translateY(-1px);
+      ">&#x2302;</a>`;
+      btn.onclick = function (e) {
+        e.preventDefault();
+        map.setView([37.5, -119.5], 6);
+      };
+      L.DomEvent.disableScrollPropagation(btn);
+      L.DomEvent.disableClickPropagation(btn);
+      return btn;
+    },
+  });
+  map.addControl(new HomeControl());
+})();
 
 // ── LAYER CONTROL (native Leaflet, topright, no custom button) ─
 L.control.layers(basemaps, {}, { position: "topright", collapsed: true }).addTo(map);
@@ -258,7 +288,7 @@ async function reverseGeocode(lat, lon) {
   header.appendChild(btn);
 })();
 
-// Export PDF — captures the current cards as a simple report
+// Export PDF — captures current values + full explanations + 2-year stats
 document.getElementById("export-pdf-btn")?.addEventListener("click", function () {
   const btn = this;
   btn.disabled = true;
@@ -266,26 +296,104 @@ document.getElementById("export-pdf-btn")?.addEventListener("click", function ()
 
   const lat  = coordsEl?.textContent || "-";
   const name = locationEl?.textContent || "Location Report";
-  const date = new Date().toLocaleString();
+  const dateStr = dateEl?.textContent || "";
+  const generated = new Date().toLocaleString();
 
   const printEl = document.createElement("div");
   printEl.style.cssText = "font-family:Arial,sans-serif;color:#111;background:#fff;padding:24px;max-width:680px;";
   printEl.innerHTML = `
     <h1 style="margin:0 0 4px;font-size:18px;color:#0c1f2c;">Spectral Glimpse - Spectral Index Report</h1>
     <p style="margin:0 0 2px;font-size:12px;color:#555;">${name}</p>
-    <p style="margin:0 0 4px;font-size:11px;color:#888;">${lat}</p>
-    <p style="margin:0 0 16px;font-size:11px;color:#888;">Generated: ${date}</p>
+    <p style="margin:0 0 2px;font-size:11px;color:#888;">${lat}</p>
+    ${dateStr ? `<p style="margin:0 0 4px;font-size:11px;color:#888;">${dateStr}</p>` : ""}
+    <p style="margin:0 0 16px;font-size:11px;color:#888;">Generated: ${generated}</p>
     <hr style="border:none;border-top:1px solid #ddd;margin-bottom:16px;">
   `;
 
-  // Grab each index card's text content
-  const cards = cardsScroll?.querySelectorAll(".index-card") || [];
-  cards.forEach(card => {
-    const clone = card.cloneNode(true);
-    // Remove sparkline canvases and skeletons (not printable cleanly)
-    clone.querySelectorAll("canvas, .spark-skeleton, .spark-side").forEach(el => el.remove());
-    clone.style.cssText = "margin-bottom:12px;padding:10px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;";
-    printEl.appendChild(clone);
+  if (!lastApiData) {
+    btn.disabled = false;
+    btn.textContent = "\u2B07 Export PDF Report";
+    return;
+  }
+
+  const INDEX_ORDER = ["ndvi", "evi2", "nbr", "ndmi", "ndsi", "bsi"];
+  const FULL_NAMES = {
+    ndvi: "Normalized Difference Vegetation Index",
+    evi2: "Enhanced Vegetation Index 2",
+    nbr:  "Normalized Burn Ratio",
+    ndmi: "Normalized Difference Moisture Index",
+    ndsi: "Normalized Difference Snow Index",
+    bsi:  "Bare Soil Index",
+  };
+
+  INDEX_ORDER.forEach(key => {
+    const idx = lastApiData.indices[key];
+    if (!idx) return;
+    const cfg = INDEX_CONFIG[key] || {};
+
+    // Compute 2-year stats if history available
+    const history = (lastApiData.history && lastApiData.history[key]) || [];
+    const values  = history.map(h => h.value);
+    const avg     = values.length ? (values.reduce((a,b) => a+b,0) / values.length).toFixed(3) : "N/A";
+    const hi      = values.length ? Math.max(...values).toFixed(3) : "N/A";
+    const lo      = values.length ? Math.min(...values).toFixed(3) : "N/A";
+
+    // Trend
+    let trendStr = "Stable";
+    if (values.length >= 6) {
+      const third     = Math.floor(values.length / 3);
+      const earlyAvg  = values.slice(0, third).reduce((a,b)=>a+b,0) / third;
+      const recentAvg = values.slice(-third).reduce((a,b)=>a+b,0) / third;
+      const delta     = recentAvg - earlyAvg;
+      const range     = (cfg.max ?? 1) - (cfg.min ?? -1);
+      if (delta > range * 0.04)       trendStr = "Increasing over 2 years";
+      else if (delta < -range * 0.04) trendStr = "Decreasing over 2 years";
+    }
+
+    const section = document.createElement("div");
+    section.style.cssText = "margin-bottom:16px;padding:12px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;page-break-inside:avoid;";
+    section.innerHTML = `
+      <div style="font-size:10px;font-weight:600;color:#6a8fa8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">${key.toUpperCase()}</div>
+      <div style="font-size:16px;font-weight:600;color:#0c1f2c;margin-bottom:6px;">${FULL_NAMES[key] || idx.label}</div>
+
+      <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+        <div style="background:#fff;border:1px solid #ddd;border-radius:5px;padding:7px 12px;min-width:80px;text-align:center;">
+          <div style="font-size:18px;font-weight:600;color:#0c1f2c;">${idx.value !== null ? idx.value.toFixed(3) : "N/A"}</div>
+          <div style="font-size:9px;color:#7a9ab0;text-transform:uppercase;margin-top:2px;">Current</div>
+        </div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:5px;padding:7px 12px;min-width:80px;text-align:center;">
+          <div style="font-size:18px;font-weight:600;color:#0c1f2c;">${avg}</div>
+          <div style="font-size:9px;color:#7a9ab0;text-transform:uppercase;margin-top:2px;">2-yr Avg</div>
+        </div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:5px;padding:7px 12px;min-width:80px;text-align:center;">
+          <div style="font-size:18px;font-weight:600;color:#0c1f2c;">${lo}</div>
+          <div style="font-size:9px;color:#7a9ab0;text-transform:uppercase;margin-top:2px;">2-yr Low</div>
+        </div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:5px;padding:7px 12px;min-width:80px;text-align:center;">
+          <div style="font-size:18px;font-weight:600;color:#0c1f2c;">${hi}</div>
+          <div style="font-size:9px;color:#7a9ab0;text-transform:uppercase;margin-top:2px;">2-yr High</div>
+        </div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:5px;padding:7px 12px;min-width:80px;text-align:center;">
+          <div style="font-size:13px;font-weight:600;color:#0c1f2c;">${trendStr}</div>
+          <div style="font-size:9px;color:#7a9ab0;text-transform:uppercase;margin-top:2px;">Trend</div>
+        </div>
+      </div>
+
+      ${idx.interpretation ? `<p style="font-size:11px;color:#334155;margin:0 0 8px;font-style:italic;">${idx.interpretation}</p>` : ""}
+
+      ${cfg.what ? `
+        <p style="font-size:11px;color:#555;margin:0 0 6px;line-height:1.5;"><strong>What it measures:</strong> ${cfg.what}</p>
+      ` : ""}
+
+      ${cfg.equation ? `
+        <p style="font-size:10px;color:#7a9ab0;font-family:monospace;background:#f0f0f0;padding:4px 8px;border-radius:4px;margin:0 0 6px;"><strong>Equation:</strong> ${cfg.equation}</p>
+      ` : ""}
+
+      ${cfg.trend_context ? `
+        <p style="font-size:11px;color:#555;margin:0;line-height:1.5;"><strong>Trend context:</strong> ${cfg.trend_context}</p>
+      ` : ""}
+    `;
+    printEl.appendChild(section);
   });
 
   const opt = {

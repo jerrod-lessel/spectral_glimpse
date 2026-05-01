@@ -183,6 +183,30 @@ html, body {
 
 .donation-text a:hover { text-decoration: underline; }
 
+/* Home button */
+.sg-home-button {
+  background: var(--ctrl-bg) !important;
+  border: 1px solid var(--ctrl-border) !important;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+}
+
+.sg-home-button:hover {
+  background: var(--ctrl-hover) !important;
+}
+
+.sg-home-button a,
+.sg-home-button a:visited {
+  color: var(--ctrl-text) !important;
+}
+
 /* Scale bar */
 .leaflet-control-scale-line {
   background: rgba(13,25,38,0.80) !important;
@@ -504,7 +528,7 @@ html, body {
 }
 
 .gauge-side { flex-shrink: 0; }
-.spark-side { flex: 1; min-width: 0; }
+.spark-side { flex: 1; min-width: 0; min-height: 52px; display: flex; align-items: center; }
 
 .card-interp {
   font-size: 10px;
@@ -712,6 +736,7 @@ html, body {
 
 /* Sparkline skeleton */
 .spark-skeleton {
+  flex: 1;
   width: 100%;
   height: 52px;
   border-radius: 4px;

@@ -170,29 +170,10 @@ addCaliforniaFocusMask();
 // ── ZOOM CONTROL (top-left, like GM) ─────────────────────────
 L.control.zoom({ position: "topleft" }).addTo(map);
 
-// ── LAYER CONTROL (GM-style hamburger button) ─────────────────
-// We use a custom toggle button + the built-in L.control.layers panel
-const CustomLayersControl = L.Control.extend({
-  options: { position: "topright" },
-  onAdd: function () {
-    const c = L.DomUtil.create("div", "leaflet-bar custom-layers-button");
-    c.innerHTML = '<span class="layers-icon">&#x2630;</span>';
-    c.title = "Toggle basemap selector";
-    c.onclick = function () {
-      // Toggle the built-in layers control expand
-      const toggle = document.querySelector(".leaflet-control-layers-toggle");
-      if (toggle) toggle.click();
-    };
-    L.DomEvent.disableClickPropagation(c);
-    return c;
-  },
-});
-map.addControl(new CustomLayersControl());
-
-// Add the actual layer control (collapsed, no overlays for SG)
+// ── LAYER CONTROL (native Leaflet, topright, no custom button) ─
 L.control.layers(basemaps, {}, { position: "topright", collapsed: true }).addTo(map);
 
-// Scale bar
+// Scale bar — bottomright, above attribution
 L.control.scale({ imperial: true, position: "bottomright" }).addTo(map);
 
 // ── ABOUT TOGGLE ──────────────────────────────────────────────
@@ -235,6 +216,7 @@ function showLoading() {
 function showCards() {
   sidebarLoading.style.display = "none";
   cardsScroll.style.display    = "flex";
+  document.getElementById("sidebar-footer-actions")?.classList.remove("hidden");
 }
 
 function showError(msg) {
@@ -275,6 +257,51 @@ async function reverseGeocode(lat, lon) {
   header.style.position = "relative";
   header.appendChild(btn);
 })();
+
+// Export PDF — captures the current cards as a simple report
+document.getElementById("export-pdf-btn")?.addEventListener("click", function () {
+  const btn = this;
+  btn.disabled = true;
+  btn.textContent = "Generating PDF...";
+
+  const lat  = coordsEl?.textContent || "-";
+  const name = locationEl?.textContent || "Location Report";
+  const date = new Date().toLocaleString();
+
+  const printEl = document.createElement("div");
+  printEl.style.cssText = "font-family:Arial,sans-serif;color:#111;background:#fff;padding:24px;max-width:680px;";
+  printEl.innerHTML = `
+    <h1 style="margin:0 0 4px;font-size:18px;color:#0c1f2c;">Spectral Glimpse - Spectral Index Report</h1>
+    <p style="margin:0 0 2px;font-size:12px;color:#555;">${name}</p>
+    <p style="margin:0 0 4px;font-size:11px;color:#888;">${lat}</p>
+    <p style="margin:0 0 16px;font-size:11px;color:#888;">Generated: ${date}</p>
+    <hr style="border:none;border-top:1px solid #ddd;margin-bottom:16px;">
+  `;
+
+  // Grab each index card's text content
+  const cards = cardsScroll?.querySelectorAll(".index-card") || [];
+  cards.forEach(card => {
+    const clone = card.cloneNode(true);
+    // Remove sparkline canvases and skeletons (not printable cleanly)
+    clone.querySelectorAll("canvas, .spark-skeleton, .spark-side").forEach(el => el.remove());
+    clone.style.cssText = "margin-bottom:12px;padding:10px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;";
+    printEl.appendChild(clone);
+  });
+
+  const opt = {
+    margin:     [10, 10, 10, 10],
+    filename:   `spectral-glimpse-report-${Date.now()}.pdf`,
+    image:      { type: "jpeg", quality: 0.92 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+    jsPDF:      { unit: "mm", format: "a4", orientation: "portrait" },
+  };
+
+  html2pdf().set(opt).from(printEl).save()
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = "\u2B07 Export PDF Report";
+    });
+});
 
 // ── GAUGE SVG ─────────────────────────────────────────────────
 function makeGauge(value, min, max, color, size = 72) {
@@ -428,34 +455,6 @@ map.on("click", async function (e) {
   buildCards(apiData);
   showCards();
 
-  const loadMessages = [
-    "pulling 2 years of satellite data",
-    "free data takes a moment 🛰️",
-    "good things come to those who wait",
-    "querying the archive...",
-    "worth the wait, we promise",
-    "just remember, this is still free",
-    "man that's a lot of data!",
-  ];
-  const randomMsg = loadMessages[Math.floor(Math.random() * loadMessages.length)];
-
-  Object.keys(INDEX_CONFIG).forEach((key, i) => {
-    const card = document.querySelector(`[data-index-key="${key}"] .spark-side`);
-    if (!card) return;
-    if (i === 0) {
-      card.innerHTML = `
-        <div class="spark-skeleton" style="position:relative;">
-          <div style="
-            position:absolute;inset:0;display:flex;align-items:center;
-            justify-content:center;font-size:9px;color:rgba(255,255,255,0.3);
-            font-family:monospace;white-space:nowrap;overflow:hidden;padding:0 6px;
-          ">${randomMsg}</div>
-        </div>`;
-    } else {
-      card.innerHTML = '<div class="spark-skeleton"></div>';
-    }
-  });
-
   const history = await fetchHistory(lat, lng);
 
   if (history) {
@@ -563,8 +562,19 @@ function buildCards(data) {
   lastApiData = data;
   cardsScroll.innerHTML = "";
 
+  const loadMessages = [
+    "pulling 2 years of satellite data",
+    "free data takes a moment \uD83D\uDEF0\uFE0F",
+    "good things come to those who wait",
+    "querying the archive...",
+    "worth the wait, we promise",
+    "just remember, this is still free",
+    "man that's a lot of data!",
+  ];
+  const randomMsg = loadMessages[Math.floor(Math.random() * loadMessages.length)];
+
   const INDEX_ORDER = ["ndvi", "evi2", "nbr", "ndmi", "ndsi", "bsi"];
-  INDEX_ORDER.forEach(key => {
+  INDEX_ORDER.forEach((key, i) => {
     const idx = data.indices[key];
     if (!idx) return;
     const cfg      = INDEX_CONFIG[key] || {};
@@ -572,6 +582,21 @@ function buildCards(data) {
     const min      = cfg.min ?? -1;
     const max      = cfg.max ?? 1;
     const canvasId = `spark-${key}`;
+
+    // If history already available (e.g. mock mode) render chart, otherwise shimmer
+    const hasHistory = data.history && data.history[key] && data.history[key].length;
+
+    const sparkHTML = hasHistory
+      ? `<canvas id="${canvasId}" width="158" height="52"></canvas>`
+      : i === 0
+        ? `<div class="spark-skeleton" style="position:relative;">
+             <div style="position:absolute;inset:0;display:flex;align-items:center;
+               justify-content:center;font-size:9px;color:rgba(255,255,255,0.3);
+               font-family:monospace;white-space:nowrap;overflow:hidden;padding:0 6px;">
+               ${randomMsg}
+             </div>
+           </div>`
+        : `<div class="spark-skeleton"></div>`;
 
     const card = document.createElement("div");
     card.className = "index-card";
@@ -586,9 +611,7 @@ function buildCards(data) {
             : `<div style="width:72px;height:52px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--panel-text-label);">no data</div>`
           }
         </div>
-        <div class="spark-side">
-          <canvas id="${canvasId}" width="158" height="52"></canvas>
-        </div>
+        <div class="spark-side">${sparkHTML}</div>
       </div>
       <div class="card-interp">${idx.interpretation || ""}</div>
     `;
@@ -598,12 +621,12 @@ function buildCards(data) {
       if (lastApiData) openModal(key, lastApiData);
     });
 
-    if (data.history && data.history[key]) {
-      const history = data.history[key];
+    // Render immediately if history already present
+    if (hasHistory) {
       renderSparkline(
         canvasId,
-        history.map(h => h.date),
-        history.map(h => h.value),
+        data.history[key].map(h => h.date),
+        data.history[key].map(h => h.value),
         color, min, max
       );
     }

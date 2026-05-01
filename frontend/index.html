@@ -20,6 +20,9 @@
   <!-- Chart.js for sparklines -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+  <!-- html2pdf for export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -78,6 +81,13 @@
 
     <!-- Cards injected here by map.js -->
     <div id="cards-scroll" style="display:none;"></div>
+
+    <div id="sidebar-footer-actions" class="hidden">
+      <button id="export-pdf-btn">&#x2B07; Export PDF Report</button>
+      <div id="donation-card">
+        <span class="donation-text">&#x2615; This tool is free &mdash; <a href="https://ko-fi.com/jerrodlessel" target="_blank" rel="noopener">support its development</a></span>
+      </div>
+    </div>
 
     <div id="sidebar-footer">
       <span>Spectral Glimpse</span>

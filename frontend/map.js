@@ -1,6 +1,6 @@
 /* ============================================================
    Spectral Glimpse — map.js
-   VERSION: 2026-04-29.a
+   VERSION: 2026-05-01.a
 
    Changes from original:
    - Added California focus mask (via Esri Leaflet, same as GM)
@@ -181,20 +181,31 @@ L.control.zoom({ position: "topleft" }).addTo(map);
   const HomeControl = L.Control.extend({
     options: { position: "topleft" },
     onAdd: function () {
-      const btn = L.DomUtil.create("div", "sg-home-button leaflet-bar leaflet-control");
-      btn.innerHTML = `<a href="#" title="Reset View" style="
-        display:flex;align-items:center;justify-content:center;
-        width:30px;height:30px;font-size:20px;line-height:1;
-        color:var(--ctrl-text);text-decoration:none;
-        transform:translateY(-1px);
-      ">&#x2302;</a>`;
-      btn.onclick = function (e) {
-        e.preventDefault();
-        map.setView([37.5, -119.5], 6);
-      };
-      L.DomEvent.disableScrollPropagation(btn);
-      L.DomEvent.disableClickPropagation(btn);
-      return btn;
+      const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+      const a = L.DomUtil.create("a", "", container);
+      a.href = "#";
+      a.title = "Reset View";
+      // Inline styles — guaranteed to match zoom buttons regardless of specificity
+      a.style.cssText = [
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "width:26px",
+        "height:26px",
+        "font-size:18px",
+        "line-height:1",
+        "color:#94b4c8",
+        "background:rgba(13,25,38,0.92)",
+        "text-decoration:none",
+        "border:none",
+      ].join(";");
+      a.innerHTML = "&#x2302;";
+      a.addEventListener("mouseover", () => { a.style.background = "rgba(62,207,207,0.15)"; a.style.color = "#3ecfcf"; });
+      a.addEventListener("mouseout",  () => { a.style.background = "rgba(13,25,38,0.92)";  a.style.color = "#94b4c8"; });
+      a.addEventListener("click", (e) => { e.preventDefault(); map.setView([37.5, -119.5], 6); });
+      L.DomEvent.disableScrollPropagation(container);
+      L.DomEvent.disableClickPropagation(container);
+      return container;
     },
   });
   map.addControl(new HomeControl());

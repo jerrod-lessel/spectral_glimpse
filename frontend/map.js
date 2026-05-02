@@ -573,6 +573,8 @@ map.on("click", async function (e) {
 
   buildCards(apiData);
   showCards();
+  historyLoaded = false;
+  setExportBtn(false); // disable while history loads
 
   const history = await fetchHistory(lat, lng);
 
@@ -599,6 +601,8 @@ map.on("click", async function (e) {
     });
 
     if (lastApiData) lastApiData.history = history;
+    historyLoaded = true;
+    setExportBtn(true);
   }
 });
 
@@ -676,6 +680,18 @@ document.body.insertAdjacentHTML("beforeend", `
 `);
 
 let lastApiData = null;
+let historyLoaded = false;
+
+function setExportBtn(enabled) {
+  const btn = document.getElementById("export-pdf-btn");
+  if (!btn) return;
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? "1" : "0.4";
+  btn.style.cursor = enabled ? "pointer" : "not-allowed";
+  btn.title = enabled
+    ? "Export PDF report"
+    : "Loading 2-year history — export will be available shortly";
+}
 
 function buildCards(data) {
   lastApiData = data;

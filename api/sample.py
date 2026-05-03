@@ -30,6 +30,7 @@ from botocore.exceptions import ClientError
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pathlib import Path
+from datetime import datetime
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
@@ -89,6 +90,8 @@ def sample_cog(url: str, lat: float, lon: float) -> float | None:
             CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE="NO",
             GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
             CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif",
+            GDAL_HTTP_MAX_RETRY="3",
+            GDAL_HTTP_RETRY_DELAY="1",
         ):
             with rasterio.open(vsicurl_url) as src:
                 row, col = src.index(lon, lat)
@@ -291,7 +294,13 @@ def history():
 
     # Sort each index chronologically
     for index_name in history:
-        history[index_name].sort(key=lambda x: x["date"])
+        def parse_date(entry):
+            try:
+                return datetime.strptime(entry["date"], "%b %d %Y")
+            except Exception:
+                return datetime.min
+        
+        history[index_name].sort(key=parse_date)
 
     return jsonify({
         "lat":     lat,

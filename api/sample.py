@@ -237,10 +237,9 @@ def sample():
 @app.route("/history")
 def history():
     try:
-        lat = float(request.args.get("lat"))
-        lon = float(request.args.get("lon"))
-        # Allow caller to request more entries, default to 12
-        limit = min(int(request.args.get("limit", 12)), 91)
+        lat   = float(request.args.get("lat"))
+        lon   = float(request.args.get("lon"))
+        limit = min(int(request.args.get("limit", 91)), 91)
     except (TypeError, ValueError):
         return jsonify({"error": "lat and lon are required numeric parameters"}), 400
 
@@ -251,21 +250,48 @@ def history():
     if not manifest:
         return jsonify({"error": "No data available yet."}), 503
 
-    # Take only the most recent N entries
-    recent   = manifest[-limit:]
-    history  = {name: [] for name in INDEX_META.keys()}
+    recent  = manifest[-limit:]
+    history = {name: [] for name in INDEX_META.keys()}
 
-    for entry in recent:
-        for index_name in INDEX_META.keys():
-            r2_key = entry["indices"].get(index_name)
-            if not r2_key:
-                continue
-            value = sample_cog(get_r2_cog_url(r2_key), lat, lon)
-            if value is not None:
-                history[index_name].append({
-                    "date":  entry.get("date_label", entry.get("date", "")),
-                    "value": value
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def sample_one(entry, index_name):
+        r2_key = entry["indices"].get(index_name)
+        if not r2_key:
+            return None
+        value = sample_cog(get_r2_cog_url(r2_key), lat, lon)
+        if value is None:
+            return None
+        return {
+            "index_name": index_name,
+            "date":       entry.get("date_label", entry.get("date", "")),
+            "value":      value
+        }
+
+    tasks = [
+        (entry, index_name)
+        for entry in recent
+        for index_name in INDEX_META.keys()
+    ]
+
+    # 6 concurrent threads — conservative enough to be stable,
+    # fast enough to make a meaningful difference
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {
+            executor.submit(sample_one, entry, index_name): (entry, index_name)
+            for entry, index_name in tasks
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                history[result["index_name"]].append({
+                    "date":  result["date"],
+                    "value": result["value"]
                 })
+
+    # Sort each index chronologically
+    for index_name in history:
+        history[index_name].sort(key=lambda x: x["date"])
 
     return jsonify({
         "lat":     lat,

@@ -1,5 +1,6 @@
 """
-main.py
+Spectral Glimpse — main.py
+VERSION: 2026-05-03.a
 -------
 Entrypoint for the Spectral Glimpse pipeline.
 Runs the full pipeline:
@@ -144,8 +145,21 @@ def run():
     ca_geom    = fetch_california_boundary()
     final_cogs = mosaic_and_clip(TILE_DIR, OUTPUT_DIR, ca_geom, INDEX_NAMES)
 
-    composite_date = datetime.utcnow().strftime("%Y%m%d")
-    date_label     = datetime.utcnow().strftime("%b %d %Y")
+    # Extract acquisition date from the first HDF5 filename
+    # Format: VNP09H1.AYYYYDDD.hXXvYY... where AYYYYDDD is acquisition year+julian day
+    def get_acquisition_date(hdf_files):
+        try:
+            name = hdf_files[0].name  # e.g. VNP09H1.A2026089.h08v04...
+            part = name.split(".")[1]  # A2026089
+            year = int(part[1:5])
+            jday = int(part[5:8])
+            from datetime import date
+            d = date(year, 1, 1) + __import__('datetime').timedelta(days=jday - 1)
+            return d.strftime("%Y%m%d"), d.strftime("%b %d %Y")
+        except Exception:
+            return datetime.utcnow().strftime("%Y%m%d"), datetime.utcnow().strftime("%b %d %Y")
+    
+    composite_date, date_label = get_acquisition_date(hdf_files)
 
     dated_cogs = {}
     for index_name, cog_path in final_cogs.items():

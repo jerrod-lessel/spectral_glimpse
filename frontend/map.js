@@ -1,6 +1,6 @@
 /* ============================================================
    Spectral Glimpse — map.js
-   VERSION: 2026-05-01.a
+   VERSION: 2026-05-03.b
 
    Changes from original:
    - Added California focus mask (via Esri Leaflet, same as GM)
@@ -10,6 +10,7 @@
    - About toggle wired up
    - Sidebar slides from right and closes with X button
    - All core spectral index logic unchanged
+   - Progress bar + export button disable during history load
 ============================================================ */
 
 // ── CONFIG ────────────────────────────────────────────────────
@@ -97,9 +98,6 @@ const CA_BOUNDARY_URL =
   "https://services.arcgis.com/ue9rwulIoeLEI9bj/arcgis/rest/services/US_StateBoundaries/FeatureServer/0";
 
 // ── MAP INIT ──────────────────────────────────────────────────
-// Suppress Leaflet's default marker icon — we use divIcons exclusively.
-// Without this, Leaflet tries to load marker-icon.png and leaves artifact
-// pixels when the image 404s on Cloudflare Pages.
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: "", shadowUrl: "", iconRetinaUrl: "" });
 
@@ -130,10 +128,9 @@ const basemaps = {
   }),
 };
 
-// Default basemap
 basemaps["Carto Light"].addTo(map);
 
-// ── CALIFORNIA FOCUS MASK (same logic as GM) ──────────────────
+// ── CALIFORNIA FOCUS MASK ─────────────────────────────────────
 function addCaliforniaFocusMask() {
   try {
     const maskPane = map.createPane("caMaskPane");
@@ -173,10 +170,9 @@ function addCaliforniaFocusMask() {
 
 addCaliforniaFocusMask();
 
-// ── ZOOM CONTROL (top-left, like GM) ─────────────────────────
+// ── ZOOM + HOME CONTROLS ──────────────────────────────────────
 L.control.zoom({ position: "topleft" }).addTo(map);
 
-// ── HOME BUTTON (top-left, below zoom) ───────────────────────
 (function addHomeButton() {
   const HomeControl = L.Control.extend({
     options: { position: "topleft" },
@@ -185,19 +181,11 @@ L.control.zoom({ position: "topleft" }).addTo(map);
       const a = L.DomUtil.create("a", "", container);
       a.href = "#";
       a.title = "Reset View";
-      // Inline styles — guaranteed to match zoom buttons regardless of specificity
       a.style.cssText = [
-        "display:flex",
-        "align-items:center",
-        "justify-content:center",
-        "width:26px",
-        "height:26px",
-        "font-size:18px",
-        "line-height:1",
-        "color:#94b4c8",
-        "background:rgba(13,25,38,0.92)",
-        "text-decoration:none",
-        "border:none",
+        "display:flex","align-items:center","justify-content:center",
+        "width:26px","height:26px","font-size:18px","line-height:1",
+        "color:#94b4c8","background:rgba(13,25,38,0.92)",
+        "text-decoration:none","border:none",
       ].join(";");
       a.innerHTML = "&#x2302;";
       a.addEventListener("mouseover", () => { a.style.background = "rgba(62,207,207,0.15)"; a.style.color = "#3ecfcf"; });
@@ -211,10 +199,7 @@ L.control.zoom({ position: "topleft" }).addTo(map);
   map.addControl(new HomeControl());
 })();
 
-// ── LAYER CONTROL (native Leaflet, topright, no custom button) ─
 L.control.layers(basemaps, {}, { position: "topright", collapsed: true }).addTo(map);
-
-// Scale bar — bottomright, above attribution
 L.control.scale({ imperial: true, position: "bottomright" }).addTo(map);
 
 // ── ABOUT TOGGLE ──────────────────────────────────────────────
@@ -286,7 +271,7 @@ async function reverseGeocode(lat, lon) {
   }
 }
 
-// Add close button to sidebar header dynamically
+// ── SIDEBAR CLOSE BUTTON ──────────────────────────────────────
 (function addSidebarCloseButton() {
   const header = document.getElementById("sidebar-header");
   if (!header) return;
@@ -299,14 +284,14 @@ async function reverseGeocode(lat, lon) {
   header.appendChild(btn);
 })();
 
-// Export PDF — captures current values + full explanations + 2-year stats
+// ── EXPORT PDF ────────────────────────────────────────────────
 document.getElementById("export-pdf-btn")?.addEventListener("click", function () {
   const btn = this;
   btn.disabled = true;
   btn.textContent = "Generating PDF...";
 
-  const lat  = coordsEl?.textContent || "-";
-  const name = locationEl?.textContent || "Location Report";
+  const lat     = coordsEl?.textContent || "-";
+  const name    = locationEl?.textContent || "Location Report";
   const dateStr = dateEl?.textContent || "";
   const generated = new Date().toLocaleString();
 
@@ -342,14 +327,12 @@ document.getElementById("export-pdf-btn")?.addEventListener("click", function ()
     if (!idx) return;
     const cfg = INDEX_CONFIG[key] || {};
 
-    // Compute 2-year stats if history available
     const history = (lastApiData.history && lastApiData.history[key]) || [];
     const values  = history.map(h => h.value);
     const avg     = values.length ? (values.reduce((a,b) => a+b,0) / values.length).toFixed(3) : "N/A";
     const hi      = values.length ? Math.max(...values).toFixed(3) : "N/A";
     const lo      = values.length ? Math.min(...values).toFixed(3) : "N/A";
 
-    // Trend
     let trendStr = "Stable";
     if (values.length >= 6) {
       const third     = Math.floor(values.length / 3);
@@ -366,7 +349,6 @@ document.getElementById("export-pdf-btn")?.addEventListener("click", function ()
     section.innerHTML = `
       <div style="font-size:10px;font-weight:600;color:#6a8fa8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;">${key.toUpperCase()}</div>
       <div style="font-size:16px;font-weight:600;color:#0c1f2c;margin-bottom:6px;">${FULL_NAMES[key] || idx.label}</div>
-
       <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
         <div style="background:#fff;border:1px solid #ddd;border-radius:5px;padding:7px 12px;min-width:80px;text-align:center;">
           <div style="font-size:18px;font-weight:600;color:#0c1f2c;">${idx.value !== null ? idx.value.toFixed(3) : "N/A"}</div>
@@ -389,30 +371,20 @@ document.getElementById("export-pdf-btn")?.addEventListener("click", function ()
           <div style="font-size:9px;color:#7a9ab0;text-transform:uppercase;margin-top:2px;">Trend</div>
         </div>
       </div>
-
       ${idx.interpretation ? `<p style="font-size:11px;color:#334155;margin:0 0 8px;font-style:italic;">${idx.interpretation}</p>` : ""}
-
-      ${cfg.what ? `
-        <p style="font-size:11px;color:#555;margin:0 0 6px;line-height:1.5;"><strong>What it measures:</strong> ${cfg.what}</p>
-      ` : ""}
-
-      ${cfg.equation ? `
-        <p style="font-size:10px;color:#7a9ab0;font-family:monospace;background:#f0f0f0;padding:4px 8px;border-radius:4px;margin:0 0 6px;"><strong>Equation:</strong> ${cfg.equation}</p>
-      ` : ""}
-
-      ${cfg.trend_context ? `
-        <p style="font-size:11px;color:#555;margin:0;line-height:1.5;"><strong>Trend context:</strong> ${cfg.trend_context}</p>
-      ` : ""}
+      ${cfg.what ? `<p style="font-size:11px;color:#555;margin:0 0 6px;line-height:1.5;"><strong>What it measures:</strong> ${cfg.what}</p>` : ""}
+      ${cfg.equation ? `<p style="font-size:10px;color:#7a9ab0;font-family:monospace;background:#f0f0f0;padding:4px 8px;border-radius:4px;margin:0 0 6px;"><strong>Equation:</strong> ${cfg.equation}</p>` : ""}
+      ${cfg.trend_context ? `<p style="font-size:11px;color:#555;margin:0;line-height:1.5;"><strong>Trend context:</strong> ${cfg.trend_context}</p>` : ""}
     `;
     printEl.appendChild(section);
   });
 
   const opt = {
-    margin:     [10, 10, 10, 10],
-    filename:   `spectral-glimpse-report-${Date.now()}.pdf`,
-    image:      { type: "jpeg", quality: 0.92 },
+    margin:      [10, 10, 10, 10],
+    filename:    `spectral-glimpse-report-${Date.now()}.pdf`,
+    image:       { type: "jpeg", quality: 0.92 },
     html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-    jsPDF:      { unit: "mm", format: "a4", orientation: "portrait" },
+    jsPDF:       { unit: "mm", format: "a4", orientation: "portrait" },
   };
 
   html2pdf().set(opt).from(printEl).save()
@@ -452,28 +424,18 @@ function makeGauge(value, min, max, color, size = 72) {
   const h        = size * 0.72;
 
   return `
-    <svg width="${size}" height="${h}"
-         viewBox="0 0 ${size} ${h}"
-         xmlns="http://www.w3.org/2000/svg">
-      <path d="${trackD}" fill="none"
-            stroke="rgba(255,255,255,0.07)"
-            stroke-width="5" stroke-linecap="round"/>
-      <path d="${fillD}" fill="none"
-            stroke="${color}"
-            stroke-width="5" stroke-linecap="round"/>
-      <circle cx="${nx.toFixed(2)}" cy="${ny.toFixed(2)}"
-              r="3" fill="${color}"/>
-      <text x="${cx}" y="${(cy + 3).toFixed(1)}"
-            text-anchor="middle"
-            font-size="12" font-weight="500"
-            fill="${color}"
-            font-family="monospace">
+    <svg width="${size}" height="${h}" viewBox="0 0 ${size} ${h}" xmlns="http://www.w3.org/2000/svg">
+      <path d="${trackD}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="5" stroke-linecap="round"/>
+      <path d="${fillD}"  fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="${nx.toFixed(2)}" cy="${ny.toFixed(2)}" r="3" fill="${color}"/>
+      <text x="${cx}" y="${(cy+3).toFixed(1)}" text-anchor="middle"
+            font-size="12" font-weight="500" fill="${color}" font-family="monospace">
         ${value.toFixed(2)}
       </text>
     </svg>`;
 }
 
-// ── SPARKLINE (Chart.js) ──────────────────────────────────────
+// ── SPARKLINE ─────────────────────────────────────────────────
 const chartInstances = {};
 
 function renderSparkline(canvasId, labels, values, color, min, max) {
@@ -540,6 +502,62 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ── STATE ─────────────────────────────────────────────────────
+let lastApiData   = null;
+let historyLoaded = false;
+
+// ── EXPORT BUTTON STATE ───────────────────────────────────────
+function setExportBtn(enabled) {
+  const btn = document.getElementById("export-pdf-btn");
+  if (!btn) return;
+  btn.disabled      = !enabled;
+  btn.style.opacity = enabled ? "1" : "0.4";
+  btn.style.cursor  = enabled ? "pointer" : "not-allowed";
+  btn.title = enabled
+    ? "Export PDF report"
+    : "Loading 2-year history — export will be available shortly";
+}
+
+// ── PROGRESS BAR ──────────────────────────────────────────────
+// These live at module scope so fetchHistory can call failProgressBar()
+// from outside the click handler without a reference error.
+let progressTimer = null;
+
+function startProgressBar() {
+  if (progressTimer) clearInterval(progressTimer);
+  const fill  = document.getElementById("spark-progress-fill");
+  const label = document.getElementById("spark-progress-label");
+  if (!fill || !label) return;
+  let pct = 0;
+  progressTimer = setInterval(() => {
+    // Tuned for ~30-second load — crawls to 90% in ~25 seconds
+    const remaining = 90 - pct;
+    const step = Math.max(0.5, remaining * 0.08);
+    pct = Math.min(90, pct + step);
+    fill.style.width  = `${pct.toFixed(1)}%`;
+    label.textContent = `${Math.floor(pct)}%`;
+    if (pct >= 90) clearInterval(progressTimer);
+  }, 1000);
+}
+
+function completeProgressBar() {
+  if (progressTimer) clearInterval(progressTimer);
+  const fill  = document.getElementById("spark-progress-fill");
+  const label = document.getElementById("spark-progress-label");
+  if (!fill || !label) return;
+  fill.style.transition = "width 0.3s ease";
+  fill.style.width  = "100%";
+  label.textContent = "100%";
+}
+
+function failProgressBar() {
+  if (progressTimer) clearInterval(progressTimer);
+  const label = document.getElementById("spark-progress-label");
+  if (!label) return;
+  label.textContent = "timed out — try clicking again";
+  label.style.color = "rgba(251,146,60,0.5)";
+}
+
 // ── MAIN CLICK HANDLER ────────────────────────────────────────
 map.on("click", async function (e) {
   const { lat, lng } = e.latlng;
@@ -573,8 +591,11 @@ map.on("click", async function (e) {
 
   buildCards(apiData);
   showCards();
+
+  // Disable export and start progress bar while history loads
   historyLoaded = false;
-  setExportBtn(false); // disable while history loads
+  setExportBtn(false);
+  startProgressBar();
 
   const history = await fetchHistory(lat, lng);
 
@@ -603,6 +624,7 @@ map.on("click", async function (e) {
     if (lastApiData) lastApiData.history = history;
     historyLoaded = true;
     setExportBtn(true);
+    completeProgressBar();
   }
 });
 
@@ -628,19 +650,27 @@ async function fetchSample(lat, lon) {
 
 async function fetchHistory(lat, lon) {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000); // 90 sec timeout
+
     const resp = await fetch(
-      `${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=91`
+      `${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=91`,
+      { signal: controller.signal }
     );
+    clearTimeout(timeout);
     if (!resp.ok) return null;
     const data = await resp.json();
     return data.history || null;
   } catch (err) {
+    if (err.name === "AbortError") {
+      failProgressBar();
+    }
     console.error("History API error:", err);
     return null;
   }
 }
 
-// ── MODAL ─────────────────────────────────────────────────────
+// ── MODAL HTML ────────────────────────────────────────────────
 document.body.insertAdjacentHTML("beforeend", `
   <div id="modal-overlay">
     <div id="modal">
@@ -679,20 +709,7 @@ document.body.insertAdjacentHTML("beforeend", `
   </div>
 `);
 
-let lastApiData = null;
-let historyLoaded = false;
-
-function setExportBtn(enabled) {
-  const btn = document.getElementById("export-pdf-btn");
-  if (!btn) return;
-  btn.disabled = !enabled;
-  btn.style.opacity = enabled ? "1" : "0.4";
-  btn.style.cursor = enabled ? "pointer" : "not-allowed";
-  btn.title = enabled
-    ? "Export PDF report"
-    : "Loading 2-year history — export will be available shortly";
-}
-
+// ── BUILD CARDS ───────────────────────────────────────────────
 function buildCards(data) {
   lastApiData = data;
   cardsScroll.innerHTML = "";
@@ -718,17 +735,22 @@ function buildCards(data) {
     const max      = cfg.max ?? 1;
     const canvasId = `spark-${key}`;
 
-    // If history already available (e.g. mock mode) render chart, otherwise shimmer
     const hasHistory = data.history && data.history[key] && data.history[key].length;
 
     const sparkHTML = hasHistory
       ? `<canvas id="${canvasId}" width="158" height="52"></canvas>`
       : i === 0
-        ? `<div class="spark-skeleton" style="position:relative;">
+        ? `<div class="spark-skeleton" id="spark-progress-card" style="position:relative;">
              <div style="position:absolute;inset:0;display:flex;align-items:center;
                justify-content:center;font-size:9px;color:rgba(255,255,255,0.3);
-               font-family:monospace;white-space:nowrap;overflow:hidden;padding:0 6px;">
+               font-family:monospace;white-space:nowrap;overflow:hidden;padding:0 6px 14px;">
                ${randomMsg}
+             </div>
+             <div class="spark-progress-wrap">
+               <div class="spark-progress-track">
+                 <div class="spark-progress-fill" id="spark-progress-fill"></div>
+               </div>
+               <div class="spark-progress-label" id="spark-progress-label">0%</div>
              </div>
            </div>`
         : `<div class="spark-skeleton"></div>`;
@@ -756,7 +778,6 @@ function buildCards(data) {
       if (lastApiData) openModal(key, lastApiData);
     });
 
-    // Render immediately if history already present
     if (hasHistory) {
       renderSparkline(
         canvasId,
@@ -785,15 +806,15 @@ function openModal(key, data) {
 
   let trendClass = "trend-flat";
   let trendLabel = "Stable trend";
-  let trendArrow = "→";
+  let trendArrow = "\u2192";
   if (values.length >= 6) {
     const third     = Math.floor(values.length / 3);
     const earlyAvg  = values.slice(0, third).reduce((a,b) => a+b,0) / third;
     const recentAvg = values.slice(-third).reduce((a,b) => a+b,0) / third;
     const delta     = recentAvg - earlyAvg;
     const threshold = (max - min) * 0.04;
-    if (delta > threshold)      { trendClass = "trend-up";   trendLabel = "Increasing over 2 years"; trendArrow = "↑"; }
-    else if (delta < -threshold){ trendClass = "trend-down"; trendLabel = "Decreasing over 2 years"; trendArrow = "↓"; }
+    if (delta > threshold)       { trendClass = "trend-up";   trendLabel = "Increasing over 2 years"; trendArrow = "\u2191"; }
+    else if (delta < -threshold) { trendClass = "trend-down"; trendLabel = "Decreasing over 2 years"; trendArrow = "\u2193"; }
   }
 
   document.getElementById("modal-index-name").textContent = key.toUpperCase();
@@ -806,37 +827,42 @@ function openModal(key, data) {
     ndsi: "Normalized Difference Snow Index",
     bsi:  "Bare Soil Index",
   };
-  document.getElementById("modal-index-label").textContent = FULL_NAMES[key] || idx.label || key.toUpperCase();
+  document.getElementById("modal-index-label").textContent =
+    FULL_NAMES[key] || idx.label || key.toUpperCase();
 
   document.getElementById("modal-description").innerHTML = `
     <div style="margin-bottom:10px;">${cfg.what || idx.description || ""}</div>
-    <div style="
-      background:rgba(255,255,255,0.04);
-      border:0.5px solid var(--panel-border);
+    <div style="background:rgba(255,255,255,0.04);border:0.5px solid var(--panel-border);
       border-radius:8px;padding:8px 12px;margin-bottom:10px;
-      font-family:monospace;font-size:11px;color:var(--panel-text-muted);
-    ">
+      font-family:monospace;font-size:11px;color:var(--panel-text-muted);">
       <span style="color:var(--panel-text-label);font-size:10px;letter-spacing:0.05em;">EQUATION &nbsp;</span>
       ${cfg.equation || ""}
     </div>
     ${cfg.trend_context ? `
-    <div style="font-size:11px;color:var(--panel-text-label);line-height:1.6;border-top:0.5px solid var(--panel-border);padding-top:10px;">
+    <div style="font-size:11px;color:var(--panel-text-label);line-height:1.6;
+      border-top:0.5px solid var(--panel-border);padding-top:10px;">
       <span style="font-size:10px;letter-spacing:0.05em;color:var(--panel-text-label);">TREND CONTEXT &nbsp;</span><br/>
       ${cfg.trend_context}
     </div>` : ""}
   `;
 
   document.getElementById("modal-gauge-current").innerHTML =
-    idx.value !== null ? makeGauge(idx.value, min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>no data</div>";
+    idx.value !== null ? makeGauge(idx.value, min, max, color, 90)
+    : "<div style='color:var(--panel-text-label);font-size:11px;'>no data</div>";
   document.getElementById("modal-gauge-avg").innerHTML =
-    avg !== null ? makeGauge(parseFloat(avg.toFixed(3)), min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
+    avg !== null ? makeGauge(parseFloat(avg.toFixed(3)), min, max, color, 90)
+    : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
   document.getElementById("modal-gauge-min").innerHTML =
-    loVal !== null ? makeGauge(parseFloat(loVal.toFixed(3)), min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
+    loVal !== null ? makeGauge(parseFloat(loVal.toFixed(3)), min, max, color, 90)
+    : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
   document.getElementById("modal-gauge-max").innerHTML =
-    hiVal !== null ? makeGauge(parseFloat(hiVal.toFixed(3)), min, max, color, 90) : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
+    hiVal !== null ? makeGauge(parseFloat(hiVal.toFixed(3)), min, max, color, 90)
+    : "<div style='color:var(--panel-text-label);font-size:11px;'>-</div>";
 
   document.getElementById("modal-trend-wrap").innerHTML =
-    `<div class="modal-trend-badge ${trendClass}"><span>${trendArrow}</span><span>${trendLabel}</span></div>`;
+    `<div class="modal-trend-badge ${trendClass}">
+       <span>${trendArrow}</span><span>${trendLabel}</span>
+     </div>`;
 
   document.getElementById("modal-interp-text").textContent = idx.interpretation || "";
 

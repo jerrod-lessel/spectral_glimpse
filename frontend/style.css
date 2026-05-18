@@ -91,6 +91,11 @@ html, body {
   color: var(--panel-accent);
 }
 
+.leaflet-bottom.leaflet-left .leaflet-control-scale {
+  margin-bottom: 100px !important;
+  margin-left: 14px !important;
+}
+
 /* ============================================================
    BASEMAP WIDGET (top right, matching Remnant Biome)
 ============================================================ */

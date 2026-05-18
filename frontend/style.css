@@ -91,18 +91,6 @@ html, body {
   color: var(--panel-accent);
 }
 
-.leaflet-control-scale-line {
-  background: rgba(13,25,38,0.75) !important;
-  border-color: #3a5a70 !important;
-  color: #4a6a80 !important;
-  font-size: 10px !important;
-}
-
-.leaflet-bottom.leaflet-left .leaflet-control-scale {
-  margin-bottom: 110px !important;
-  margin-left: 14px !important;
-}
-
 /* ============================================================
    BASEMAP WIDGET (top right, matching Remnant Biome)
 ============================================================ */
@@ -319,6 +307,18 @@ html, body {
 
 #disclaimer-panel p { margin: 0 0 0.5rem; }
 #disclaimer-panel p:last-child { margin-bottom: 0; }
+
+.leaflet-control-scale-line {
+  background: rgba(13,25,38,0.75) !important;
+  border-color: #3a5a70 !important;
+  color: #4a6a80 !important;
+  font-size: 10px !important;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control-scale {
+  margin-bottom: 110px !important;
+  margin-left: 14px !important;
+}
 
 /* ============================================================
    SIDEBAR

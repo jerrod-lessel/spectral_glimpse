@@ -174,7 +174,7 @@ html, body {
   font-size: 10px !important;
   backdrop-filter: blur(6px);
   border-radius: 6px 0 0 0 !important;
-  padding: 6px 8px !important;
+  padding: 5px 8px !important;
 }
 
 .leaflet-control-attribution a { color: #5a9ab8 !important; }

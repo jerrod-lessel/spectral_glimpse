@@ -200,7 +200,7 @@ html, body {
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   max-width: 340px;
   width: calc(100vw - 28px);
-  overflow: hidden;
+  /*overflow: hidden;*/
   pointer-events: all;
 }
 
@@ -268,6 +268,11 @@ html, body {
 
 #about-panel p { margin: 0 0 0.5rem; }
 #about-panel p:last-child { margin-bottom: 0; }
+
+#about-panel {
+  background: var(--card-bg);
+  border-radius: 0 0 12px 12px;
+}
 
 /* Disclaimer inside about panel */
 #disclaimer-toggle {

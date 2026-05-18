@@ -321,7 +321,7 @@ html, body {
 }
 
 .leaflet-bottom.leaflet-left .leaflet-control-scale {
-  z-index: 800 !important;
+  z-index: 1000 !important;
 }
 
 /* ============================================================

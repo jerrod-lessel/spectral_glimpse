@@ -5,36 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spectral Glimpse</title>
   <meta name="description" content="On-demand spectral index values for any point in California. Powered by NASA VIIRS satellite data." />
-
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Esri Leaflet (for California mask) -->
   <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
-
-  <!-- Chart.js for sparklines -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <!-- html2pdf for export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div id="app">
 
-  <!-- ── MAP ── -->
   <div id="map">
-    <!-- Click instruction -->
     <div id="click-hint">Click anywhere in California to sample indices</div>
   </div>
 
-  <!-- ── FLOATING TITLE CARD (bottom-left, overlays the map) ── -->
+  <!-- ZOOM + HOME CONTROLS (matching Remnant Biome) -->
+  <div id="zoom-controls">
+    <button id="zoom-in"  title="Zoom in"  aria-label="Zoom in">+</button>
+    <button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="home-btn" title="Reset view" aria-label="Reset view">&#x2302;</button>
+  </div>
+
+  <!-- BASEMAP WIDGET (top right, matching Remnant Biome) -->
+  <div id="basemap-widget">
+    <button id="basemap-toggle" title="Switch basemap" aria-label="Switch basemap">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+    </button>
+    <div id="basemap-dropdown" class="hidden">
+      <button class="basemap-opt active" data-basemap="carto-light">Light</button>
+      <button class="basemap-opt" data-basemap="carto-dark">Dark</button>
+      <button class="basemap-opt" data-basemap="esri-satellite">Satellite</button>
+      <button class="basemap-opt" data-basemap="osm">Streets</button>
+    </div>
+  </div>
+
+  <!-- FLOATING TITLE CARD -->
   <div id="title-card">
     <div id="title-card-main">
       <img id="title-logo" src="favicon.svg" alt="Spectral Glimpse logo"
@@ -45,8 +57,6 @@
       </div>
       <button id="about-toggle" title="About this tool" aria-label="Toggle about panel">?</button>
     </div>
-
-    <!-- About panel — hidden by default -->
     <div id="about-panel" class="hidden">
       <p>
         Spectral Glimpse delivers on-demand satellite-derived spectral index values for any
@@ -55,39 +65,50 @@
       </p>
       <p>
         Each index comes with a current value, a plain-language interpretation, and two years
-        of historical trend data so you can see how conditions have changed over time. Data is 
+        of historical trend data so you can see how conditions have changed over time. Data is
         sourced from NASA's VIIRS VNP09H1 product at 500m resolution.
       </p>
       <p>
         Built and maintained by Jerrod Lessel, against all reasonable advice.
       </p>
+      <div id="disclaimer-toggle">
+        <span id="disclaimer-icon">&#x2696;</span>
+        <span id="disclaimer-label">Legal Disclaimer</span>
+        <span id="disclaimer-chevron">&#x25BE;</span>
+      </div>
+      <div id="disclaimer-panel" class="hidden">
+        <p>
+          This tool is intended for educational and informational purposes only.
+          Not intended for professional, legal, or financial decision-making.
+          No warranty is made on the accuracy of outputs. Use at your own risk.
+        </p>
+        <p>
+          LesselGeospatial makes no warranty, express or implied, regarding the
+          accuracy, completeness, or fitness for any particular purpose of the
+          information provided.
+        </p>
+      </div>
     </div>
   </div>
 
-  <!-- ── SIDEBAR (slides from the right) ── -->
+  <!-- SIDEBAR -->
   <div id="sidebar">
     <div id="sidebar-header">
       <div id="sidebar-coords">---.---- ° N  &middot;  ---.---- ° W</div>
       <div id="sidebar-location">Sampling...</div>
       <div id="sidebar-date"></div>
     </div>
-
-    <!-- Loading spinner -->
     <div id="sidebar-loading">
       <div class="spinner"></div>
       <span>Sampling indices...</span>
     </div>
-
-    <!-- Cards injected here by map.js -->
     <div id="cards-scroll" style="display:none;"></div>
-
     <div id="sidebar-footer-actions" class="hidden">
       <button id="export-pdf-btn">&#x2B07; Export PDF Report</button>
       <div id="donation-card">
         <span class="donation-text">&#x2615; This tool is free &mdash; <a href="https://ko-fi.com/jerrodlessel" target="_blank" rel="noopener">support its development</a></span>
       </div>
     </div>
-
     <div id="sidebar-footer">
       <span>Spectral Glimpse</span>
       <a href="https://www.lesselgeospatial.com" target="_blank" rel="noopener">lesselgeospatial.com</a>

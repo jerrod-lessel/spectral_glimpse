@@ -1,6 +1,11 @@
 /* ============================================================
    Spectral Glimpse - styles
-   VERSION: 2026-05-17.a
+   VERSION: 2026-05-18.a
+
+   Changes from 2026-05-17.a:
+   - Scale bar z-index fixed: .leaflet-bottom overridden to z-index 400
+     so it sits below #title-card (z-index 900) when about panel expands
+   - Removed all previously attempted failed fixes
 ============================================================ */
 
 :root {
@@ -56,7 +61,7 @@ html, body {
 }
 
 /* ============================================================
-   ZOOM + HOME CONTROLS (matching Remnant Biome)
+   ZOOM + HOME CONTROLS
 ============================================================ */
 
 #zoom-controls {
@@ -92,7 +97,7 @@ html, body {
 }
 
 /* ============================================================
-   BASEMAP WIDGET (top right, matching Remnant Biome)
+   BASEMAP WIDGET
 ============================================================ */
 
 #basemap-widget {
@@ -163,10 +168,18 @@ html, body {
 }
 
 /* ============================================================
-   LEAFLET ATTRIBUTION (matching Remnant Biome style)
+   LEAFLET OVERRIDES
 ============================================================ */
 
 .leaflet-container { background: #0c1f2c; }
+
+/* Drop the entire bottom control stack below the title card.
+   .leaflet-bottom is position:absolute inside #map with z-index:1000
+   by default — overriding it here puts it below #title-card (z-index:900)
+   so the about panel expansion covers the scale bar correctly. */
+.leaflet-bottom {
+  z-index: 400 !important;
+}
 
 .leaflet-control-attribution {
   background: rgba(13,25,38,0.80) !important;
@@ -179,9 +192,20 @@ html, body {
 
 .leaflet-control-attribution a { color: #5a9ab8 !important; }
 
-/* Hide the default Leaflet branding text */
 .leaflet-control-attribution .leaflet-attribution-flag { display: none !important; }
 .leaflet-control-attribution span[aria-hidden] { display: none !important; }
+
+.leaflet-control-scale-line {
+  background: rgba(13,25,38,0.75) !important;
+  border-color: #3a5a70 !important;
+  color: #4a6a80 !important;
+  font-size: 10px !important;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control-scale {
+  margin-bottom: 110px !important;
+  margin-left: 14px !important;
+}
 
 /* ============================================================
    FLOATING TITLE CARD
@@ -191,7 +215,7 @@ html, body {
   position: fixed;
   bottom: 28px;
   left: 14px;
-  z-index: 901;
+  z-index: 900;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;
@@ -200,7 +224,7 @@ html, body {
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   max-width: 340px;
   width: calc(100vw - 28px);
-  /*overflow: hidden;*/
+  overflow: hidden;
   pointer-events: all;
 }
 
@@ -269,11 +293,6 @@ html, body {
 #about-panel p { margin: 0 0 0.5rem; }
 #about-panel p:last-child { margin-bottom: 0; }
 
-#about-panel {
-  background: var(--card-bg);
-  border-radius: 0 0 12px 12px;
-}
-
 /* Disclaimer inside about panel */
 #disclaimer-toggle {
   display: flex;
@@ -312,22 +331,6 @@ html, body {
 
 #disclaimer-panel p { margin: 0 0 0.5rem; }
 #disclaimer-panel p:last-child { margin-bottom: 0; }
-
-.leaflet-control-scale-line {
-  background: rgba(13,25,38,0.75) !important;
-  border-color: #3a5a70 !important;
-  color: #4a6a80 !important;
-  font-size: 10px !important;
-}
-
-.leaflet-bottom.leaflet-left .leaflet-control-scale {
-  margin-bottom: 110px !important;
-  margin-left: 14px !important;
-}
-
-.leaflet-bottom.leaflet-left .leaflet-control-scale {
-  z-index: 800 !important;
-}
 
 /* ============================================================
    SIDEBAR
@@ -734,7 +737,10 @@ html, body {
   margin-bottom: 6px;
 }
 
-/* Sparkline skeleton */
+/* ============================================================
+   SPARKLINE SKELETON + PROGRESS
+============================================================ */
+
 .spark-skeleton {
   flex: 1;
   width: 100%;

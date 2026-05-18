@@ -91,8 +91,15 @@ html, body {
   color: var(--panel-accent);
 }
 
+.leaflet-control-scale-line {
+  background: rgba(13,25,38,0.75) !important;
+  border-color: #3a5a70 !important;
+  color: #4a6a80 !important;
+  font-size: 10px !important;
+}
+
 .leaflet-bottom.leaflet-left .leaflet-control-scale {
-  margin-bottom: 100px !important;
+  margin-bottom: 110px !important;
   margin-left: 14px !important;
 }
 

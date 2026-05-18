@@ -191,7 +191,7 @@ html, body {
   position: fixed;
   bottom: 28px;
   left: 14px;
-  z-index: 900;
+  z-index: 901;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 12px;

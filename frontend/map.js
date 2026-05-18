@@ -1,16 +1,12 @@
 /* ============================================================
    Spectral Glimpse — map.js
-   VERSION: 2026-05-03.b
+   VERSION: 2026-05-17.a
 
-   Changes from original:
-   - Added California focus mask (via Esri Leaflet, same as GM)
-   - Added 4-basemap selector (OSM, Esri Satellite, Carto Light, Carto Dark)
-   - Added GM-style custom layers button (hamburger icon)
-   - Zoom control moved to topleft
-   - About toggle wired up
-   - Sidebar slides from right and closes with X button
-   - All core spectral index logic unchanged
-   - Progress bar + export button disable during history load
+   Changes:
+   - Zoom/home controls now use HTML buttons (matching Remnant Biome)
+   - Basemap selector uses HTML dropdown (matching Remnant Biome)
+   - Legal disclaimer toggle added
+   - L.control.zoom, L.control.layers, L.control.scale removed
 ============================================================ */
 
 // ── CONFIG ────────────────────────────────────────────────────
@@ -76,12 +72,12 @@ const MOCK_MODE = false;
 const MOCK_DATA = {
   composite_date: "Mar 30 2026",
   indices: {
-    ndvi: { label:"NDVI", value:0.42, interpretation:"Moderate vegetation — grassland or dry shrubland typical of coastal foothills." },
+    ndvi: { label:"NDVI", value:0.42, interpretation:"Moderate vegetation - grassland or dry shrubland typical of coastal foothills." },
     evi2: { label:"EVI2", value:0.31, interpretation:"Sparse to moderate vegetation cover with reduced atmosphere sensitivity." },
     nbr:  { label:"NBR",  value:0.38, interpretation:"Healthy unburned vegetation. Low single-date burn risk indicator." },
-    ndmi: { label:"NDMI", value:0.12, interpretation:"Moderate moisture — vegetation mildly stressed, typical of late dry season." },
+    ndmi: { label:"NDMI", value:0.12, interpretation:"Moderate moisture - vegetation mildly stressed, typical of late dry season." },
     ndsi: { label:"NDSI", value:-0.18,interpretation:"No snow or ice detected at this elevation and location." },
-    bsi:  { label:"BSI",  value:0.08, interpretation:"Mixed vegetation and bare soil — moderate ground exposure." },
+    bsi:  { label:"BSI",  value:0.08, interpretation:"Mixed vegetation and bare soil - moderate ground exposure." },
   },
   history: {
     ndvi: Array.from({length:92},(_,i)=>({ date:`8-day ${i+1}`, value: 0.42 + (Math.sin(i/8)*0.15) + (Math.random()*0.06-0.03) })),
@@ -93,13 +89,21 @@ const MOCK_DATA = {
   }
 };
 
-// ── CA BOUNDARY SERVICE (same as GM) ─────────────────────────
 const CA_BOUNDARY_URL =
   "https://services.arcgis.com/ue9rwulIoeLEI9bj/arcgis/rest/services/US_StateBoundaries/FeatureServer/0";
+
+const BASEMAP_TILES = {
+  "carto-light":    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  "carto-dark":     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  "esri-satellite": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  "osm":            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+};
 
 // ── MAP INIT ──────────────────────────────────────────────────
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: "", shadowUrl: "", iconRetinaUrl: "" });
+
+let activeBasemap = "carto-light";
 
 const map = L.map("map", {
   center: [37.5, -119.5],
@@ -108,27 +112,10 @@ const map = L.map("map", {
   attributionControl: true,
 });
 
-// ── BASEMAPS ──────────────────────────────────────────────────
-const basemaps = {
-  "OpenStreetMap": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap contributors",
-    maxZoom: 19,
-  }),
-  "Esri Satellite": L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "Tiles © Esri", maxZoom: 19 }
-  ),
-  "Carto Light": L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution: "© Carto",
-    maxZoom: 19,
-  }),
-  "Carto Dark": L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "© Carto",
-    maxZoom: 19,
-  }),
-};
-
-basemaps["Carto Light"].addTo(map);
+L.tileLayer(BASEMAP_TILES["carto-light"], {
+  attribution: "© Carto © OpenStreetMap contributors",
+  maxZoom: 19,
+}).addTo(map);
 
 // ── CALIFORNIA FOCUS MASK ─────────────────────────────────────
 function addCaliforniaFocusMask() {
@@ -170,42 +157,50 @@ function addCaliforniaFocusMask() {
 
 addCaliforniaFocusMask();
 
-// ── ZOOM + HOME CONTROLS ──────────────────────────────────────
-L.control.zoom({ position: "topleft" }).addTo(map);
+// ── ZOOM + HOME CONTROLS (HTML buttons, matching Remnant Biome) ───
+document.getElementById("zoom-in").addEventListener("click",  () => map.zoomIn());
+document.getElementById("zoom-out").addEventListener("click", () => map.zoomOut());
+document.getElementById("home-btn").addEventListener("click", () =>
+  map.setView([37.5, -119.5], 6)
+);
 
-(function addHomeButton() {
-  const HomeControl = L.Control.extend({
-    options: { position: "topleft" },
-    onAdd: function () {
-      const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-      const a = L.DomUtil.create("a", "", container);
-      a.href = "#";
-      a.title = "Reset View";
-      a.style.cssText = [
-        "display:flex","align-items:center","justify-content:center",
-        "width:26px","height:26px","font-size:18px","line-height:1",
-        "color:#94b4c8","background:rgba(13,25,38,0.92)",
-        "text-decoration:none","border:none",
-      ].join(";");
-      a.innerHTML = "&#x2302;";
-      a.addEventListener("mouseover", () => { a.style.background = "rgba(62,207,207,0.15)"; a.style.color = "#3ecfcf"; });
-      a.addEventListener("mouseout",  () => { a.style.background = "rgba(13,25,38,0.92)";  a.style.color = "#94b4c8"; });
-      a.addEventListener("click", (e) => { e.preventDefault(); map.setView([37.5, -119.5], 6); });
-      L.DomEvent.disableScrollPropagation(container);
-      L.DomEvent.disableClickPropagation(container);
-      return container;
-    },
+// ── BASEMAP TOGGLE ────────────────────────────────────────────
+document.getElementById("basemap-toggle").addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("basemap-dropdown").classList.toggle("hidden");
+});
+
+document.querySelectorAll(".basemap-opt").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".basemap-opt").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeBasemap = btn.dataset.basemap;
+    // Remove existing tile layer and add new one
+    map.eachLayer(layer => {
+      if (layer instanceof L.TileLayer) map.removeLayer(layer);
+    });
+    L.tileLayer(BASEMAP_TILES[activeBasemap], {
+      attribution: "© Carto © OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map);
+    document.getElementById("basemap-dropdown").classList.add("hidden");
   });
-  map.addControl(new HomeControl());
-})();
+});
 
-L.control.layers(basemaps, {}, { position: "topright", collapsed: true }).addTo(map);
-L.control.scale({ imperial: true, position: "bottomright" }).addTo(map);
+document.addEventListener("click", () => {
+  document.getElementById("basemap-dropdown")?.classList.add("hidden");
+});
 
 // ── ABOUT TOGGLE ──────────────────────────────────────────────
 document.getElementById("about-toggle")?.addEventListener("click", function () {
   document.getElementById("about-panel")?.classList.toggle("hidden");
   setTimeout(() => map.invalidateSize(), 50);
+});
+
+// ── DISCLAIMER ────────────────────────────────────────────────
+document.getElementById("disclaimer-toggle")?.addEventListener("click", () => {
+  document.getElementById("disclaimer-panel").classList.toggle("hidden");
+  document.getElementById("disclaimer-toggle").classList.toggle("open");
 });
 
 // ── CLICK MARKER ──────────────────────────────────────────────
@@ -515,12 +510,10 @@ function setExportBtn(enabled) {
   btn.style.cursor  = enabled ? "pointer" : "not-allowed";
   btn.title = enabled
     ? "Export PDF report"
-    : "Loading 2-year history — export will be available shortly";
+    : "Loading 2-year history - export will be available shortly";
 }
 
 // ── PROGRESS BAR ──────────────────────────────────────────────
-// These live at module scope so fetchHistory can call failProgressBar()
-// from outside the click handler without a reference error.
 let progressTimer = null;
 
 function startProgressBar() {
@@ -530,7 +523,6 @@ function startProgressBar() {
   if (!fill || !label) return;
   let pct = 0;
   progressTimer = setInterval(() => {
-    // Tuned for ~30-second load — crawls to 90% in ~25 seconds
     const remaining = 90 - pct;
     const step = Math.max(0.5, remaining * 0.08);
     pct = Math.min(90, pct + step);
@@ -554,7 +546,7 @@ function failProgressBar() {
   if (progressTimer) clearInterval(progressTimer);
   const label = document.getElementById("spark-progress-label");
   if (!label) return;
-  label.textContent = "timed out — try clicking again";
+  label.textContent = "timed out - try clicking again";
   label.style.color = "rgba(251,146,60,0.5)";
 }
 
@@ -592,7 +584,6 @@ map.on("click", async function (e) {
   buildCards(apiData);
   showCards();
 
-  // Disable export and start progress bar while history loads
   historyLoaded = false;
   setExportBtn(false);
   startProgressBar();
@@ -651,7 +642,7 @@ async function fetchSample(lat, lon) {
 async function fetchHistory(lat, lon) {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000); // 90 sec timeout
+    const timeout = setTimeout(() => controller.abort(), 90000);
 
     const resp = await fetch(
       `${API_URL}/history?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&limit=91`,

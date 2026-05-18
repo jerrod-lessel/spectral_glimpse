@@ -320,6 +320,10 @@ html, body {
   margin-left: 14px !important;
 }
 
+.leaflet-bottom.leaflet-left .leaflet-control-scale {
+  z-index: 800 !important;
+}
+
 /* ============================================================
    SIDEBAR
 ============================================================ */

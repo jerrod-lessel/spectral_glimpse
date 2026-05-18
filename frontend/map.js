@@ -117,6 +117,8 @@ L.tileLayer(BASEMAP_TILES["carto-light"], {
   maxZoom: 19,
 }).addTo(map);
 
+L.control.scale({ imperial: true, position: "bottomleft" }).addTo(map);
+
 // ── CALIFORNIA FOCUS MASK ─────────────────────────────────────
 function addCaliforniaFocusMask() {
   try {
